@@ -298,7 +298,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     </details>
   </section>
 
-  <footer>GHOST DETECTOR PRO · SENSOR PERANGKAT</footer>
+  <footer>GHOST DETECTOR PRO · SENSOR PERANGKAT<br>developed by iqbalmantam</footer>
 </main>
 
 <script>
@@ -722,6 +722,13 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     if (boxes.length) { S.camBoxes = boxes; S.camBoxT = performance.now(); }
   }
 
+  function drawMark(x, w, h, sc) {
+    x.save(); x.font = '500 ' + Math.round(10 * sc) + 'px "IBM Plex Mono", ui-monospace, monospace';
+    x.textAlign = 'right'; x.textBaseline = 'alphabetic'; x.globalAlpha = 0.7;
+    x.lineWidth = 3 * sc; x.strokeStyle = 'rgba(9,16,18,0.8)'; x.fillStyle = '#dbe6e3';
+    x.strokeText('developed by iqbalmantam', w - 6 * sc, h - 6 * sc); x.fillText('developed by iqbalmantam', w - 6 * sc, h - 6 * sc);
+    x.restore();
+  }
   function drawBoxes(x, w, h, boxes, sc, alpha, pulse) {
     x.save();
     boxes.forEach(function (b) {
@@ -752,6 +759,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     x.save(); if (S.night) x.filter = NIGHT_FILTER; if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
     x.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h); x.restore();
     drawBoxes(x, w, h, S.camBoxes, 1, 1, 0.5);
+    x.filter = 'none'; drawMark(x, w, h, 1);
     try { return c.toDataURL('image/jpeg', 0.65); } catch (e) { return null; }
   }
   function addGallery(url, desc, sev) {
@@ -770,6 +778,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     var c = CV.camOv, x = c.ctx, w = c.w, h = c.h, now = performance.now(), i;
     x.clearRect(0, 0, w, h);
     if (SENS.cam.st !== 'on') return;
+    drawMark(x, w, h, DPR);
     var cw = w / GX, ch = h / GY, hot = S.camS > 0.45 ? COL.crit : COL.warn;
     for (i = 0; i < GN; i++) {
       var hv = S.camHeat[i]; if (hv < 0.05) continue;
