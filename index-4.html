@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#091012">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Ghost Detector Pro: pemantau anomali berbasis sensor ponsel (magnetometer, akselerometer, mikrofon, kamera).">
+<title>Ghost Detector Pro</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: rak instrumen. Strip judul, panel indeks anomali + kontrol, tiga modul sensor (EMF, getaran, suara), log, catatan teori. */
+:root {
+  --bg: #091012;
+  --panel: #0f191c;
+  --inset: #0b1315;
+  --line: #21343a;
+  --fg: #dbe6e3;
+  --dim: #869c98;
+  --accent: #ffb23e;
+  --accent-ink: #1a1204;
+  --ok: #4fd1a1;
+  --warn: #ff9140;
+  --crit: #ff4d4d;
+  --f-display: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 var(--f-body);
+  padding-top: max(20px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 14px; }
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 20px; }
+.unit-id { font: 500 12px var(--f-mono); color: var(--accent); letter-spacing: .16em; margin: 0 0 6px; }
+h1 { font: 700 clamp(30px, 7vw, 48px)/.95 var(--f-display); letter-spacing: .02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--dim); font-size: 14px; }
+.status { display: flex; align-items: center; gap: 10px; font: 500 13px var(--f-mono); letter-spacing: .08em; }
+.led { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
+.led[data-on="1"] { background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.live-chip { font: 500 11px var(--f-mono); letter-spacing: .12em; color: var(--accent); border: 1px solid var(--accent); padding: 2px 7px; border-radius: 3px; }
+.note { margin: 0; color: var(--dim); font-size: 13px; background: var(--inset); border: 1px solid var(--line); border-radius: 4px; padding: 9px 12px; }
+.note.warn { color: var(--warn); border-color: var(--warn); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; }
+.lbl { font: 600 13px var(--f-display); letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.chip { font: 500 11px var(--f-mono); padding: 2px 7px; border-radius: 3px; border: 1px solid currentColor; letter-spacing: .08em; white-space: nowrap; }
+.chip[data-s="ok"] { color: var(--ok); }
+.chip[data-s="warn"] { color: var(--warn); }
+.chip[data-s="crit"] { color: var(--crit); }
+.chip[data-s="off"] { color: var(--dim); }
+
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px; align-items: center; }
+@media (max-width: 720px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.gauge { width: 100%; max-width: 400px; height: auto; display: block; margin: 8px auto 0; }
+.g-track { fill: none; stroke: var(--line); stroke-width: 14; stroke-linecap: butt; }
+.g-fill { fill: none; stroke: var(--ok); stroke-width: 14; stroke-linecap: butt; transition: stroke .3s; }
+.gauge[data-lvl="2"] .g-fill { stroke: var(--accent); }
+.gauge[data-lvl="3"] .g-fill { stroke: var(--warn); }
+.gauge[data-lvl="4"] .g-fill, .gauge[data-lvl="5"] .g-fill { stroke: var(--crit); }
+.g-tick { stroke: var(--dim); stroke-width: 1.5; }
+.g-num { font: 500 46px var(--f-mono); fill: var(--fg); text-anchor: middle; font-variant-numeric: tabular-nums; }
+.g-cap { font: 500 10px var(--f-mono); fill: var(--dim); text-anchor: middle; letter-spacing: .1em; }
+.level { text-align: center; margin: 2px 0 0; font: 600 22px/1.1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 0; }
+.stats div { background: var(--inset); border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; }
+.stats dt { font: 500 10px var(--f-mono); color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+.stats dd { margin: 2px 0 0; font: 500 18px var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.ctl { display: grid; gap: 14px; }
+.row { display: grid; gap: 6px; }
+.row label { font: 600 12px var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between; gap: 8px; }
+button { font: 500 14px var(--f-body); color: var(--fg); background: var(--inset); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-height: 44px; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px; }
+.btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; letter-spacing: .04em; grid-column: 1 / -1; min-height: 52px; font-size: 16px; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sensor-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sensor-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; }
+
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.grid .wide { grid-column: 1 / -1; }
+@media (max-width: 720px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.mod { display: grid; gap: 10px; align-content: start; }
+.mod-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.read { font: 500 clamp(34px, 8vw, 46px)/1 var(--f-mono); font-variant-numeric: tabular-nums; margin: 0; }
+.read small { font-size: .36em; color: var(--dim); margin-left: .35em; letter-spacing: .04em; }
+.read-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.sub-read { font: 400 13px var(--f-mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.hint { margin: 0; color: var(--dim); font-size: 13px; }
+.why { margin: 0; color: var(--warn); font-size: 13px; }
+canvas { width: 100%; display: block; background: var(--inset); border: 1px solid var(--line); border-radius: 3px; }
+canvas.trace { height: 64px; }
+canvas.vib { height: 96px; }
+canvas.spec { height: 150px; }
+.segs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.seg { height: 12px; border-radius: 2px; background: var(--line); }
+.seg.on[data-c="ok"] { background: var(--ok); }
+.seg.on[data-c="warn"] { background: var(--warn); }
+.seg.on[data-c="crit"] { background: var(--crit); }
+.spec-wrap, .vib-wrap { position: relative; }
+.band { position: absolute; left: 0; right: 0; top: 57.5%; bottom: 3.75%; border-top: 1px dashed rgba(255, 178, 62, .6); border-bottom: 1px dashed rgba(255, 178, 62, .6); pointer-events: none; }
+.band span, .ax { position: absolute; font: 400 10px var(--f-mono); color: var(--fg); text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); letter-spacing: .04em; }
+.band span { right: 6px; top: 3px; }
+.ax { left: 6px; }
+.fx { bottom: 2px; transform: translateX(-50%); position: absolute; font: 400 10px var(--f-mono); color: var(--fg); text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); }
+
+.log h2, .theory h2 { margin: 0 0 10px; }
+.log-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.log-head h2 { margin: 0; }
+.log-head button { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+ol.entries { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; display: grid; gap: 0; }
+ol.entries li { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+ol.entries li:first-child { border-top: 0; }
+ol.entries time { font: 400 12px var(--f-mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+ol.entries .txt { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { ol.entries li { grid-template-columns: auto minmax(0, 1fr); } ol.entries .txt { grid-column: 1 / -1; } }
+
+details { border-top: 1px solid var(--line); padding: 10px 0; }
+details:first-of-type { border-top: 0; }
+summary { cursor: pointer; font: 600 17px var(--f-display); letter-spacing: .08em; text-transform: uppercase; min-height: 28px; }
+details p { margin: 8px 0 0; max-width: 68ch; }
+footer { color: var(--dim); font-size: 12px; font-family: var(--f-mono); letter-spacing: .06em; text-align: center; }
+
+.camwrap { position: relative; aspect-ratio: 4 / 3; background: var(--inset); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+@media (max-width: 720px) { .camwrap { aspect-ratio: 3 / 4; } }
+.camwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.camwrap video.mirror { transform: scaleX(-1); }
+.camwrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 0; background: transparent; }
+.cam-ph { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; margin: 0; color: var(--dim); font-size: 13px; }
+.cam-ph[hidden] { display: none; }
+.cam-tools { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.gal { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.gal-item { margin: 0; flex: none; width: 132px; }
+.gal-item img { width: 100%; height: auto; display: block; border-radius: 3px; border: 1px solid var(--crit); }
+.gal-item[data-s="warn"] img { border-color: var(--warn); }
+.gal-item figcaption { font: 400 11px var(--f-mono); color: var(--dim); margin-top: 3px; overflow-wrap: anywhere; }
+.gal-empty { margin: 0; color: var(--dim); font-size: 13px; }
+img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: auto; border-radius: 3px; border: 1px solid var(--line); }
+
+@media (prefers-reduced-motion: reduce) { .led[data-on="1"] { animation: none; } .g-fill { transition: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <p class="unit-id">UNIT GDP-7 · PEMANTAU ANOMALI</p>
+      <h1>Ghost Detector Pro</h1>
+      <p class="sub">Membaca magnetometer, akselerometer, mikrofon, dan kamera ponsel, lalu menggabungkannya menjadi satu indeks anomali.</p>
+    </div>
+    <div class="status">
+      <span class="live-chip">SENSOR PERANGKAT</span>
+      <span class="led" id="led" data-on="0"></span>
+      <span id="stateText">SIAGA</span>
+      <span id="clock">00:00:00</span>
+    </div>
+  </header>
+
+  <p class="note warn" id="secWarn" hidden>Halaman ini tidak berjalan di konteks aman. Buka lewat alamat https:// (misalnya GitHub Pages) agar browser mengizinkan sensor.</p>
+  <p class="note">Angka berasal dari sensor perangkat Anda. Tidak ada alat yang terbukti bisa mendeteksi hantu, jadi setiap anomali di sini hampir selalu punya sebab biasa: magnet, kabel, getaran lantai, atau derau. Letakkan ponsel diam di permukaan datar atau sandaran saat memindai. Kamera menandai gerakan atau titik cahaya apa pun di depan lensa.</p>
+
+  <section class="panel hero" aria-label="Indeks anomali dan kontrol">
+    <div>
+      <div class="lbl" style="text-align:center">Indeks anomali</div>
+      <svg class="gauge" id="gauge" viewBox="0 0 240 150" data-lvl="0" role="img" aria-label="Indeks anomali gabungan 0 sampai 100">
+        <path class="g-track" d="M 20 125 A 100 100 0 0 1 220 125" pathLength="100"/>
+        <path class="g-fill" id="gArc" d="M 20 125 A 100 100 0 0 1 220 125" pathLength="100" stroke-dasharray="0 100"/>
+        <g id="gTicks"></g>
+        <text class="g-num" id="gNum" x="120" y="112">0</text>
+        <text class="g-cap" x="120" y="132">DARI 100</text>
+      </svg>
+      <p class="level" id="levelText">Level 0 · Tenang</p>
+      <dl class="stats">
+        <div><dt>Kejadian</dt><dd id="stEv">0</dd></div>
+        <div><dt>Puncak</dt><dd id="stPeak">0</dd></div>
+        <div><dt>Durasi</dt><dd id="stDur">00:00</dd></div>
+      </dl>
+    </div>
+    <div class="ctl">
+      <ul class="sensor-list" aria-label="Status sensor">
+        <li><span>Magnetometer</span><span class="chip" id="chMag" data-s="off">SIAGA</span></li>
+        <li><span>Akselerometer</span><span class="chip" id="chVib" data-s="off">SIAGA</span></li>
+        <li><span>Mikrofon</span><span class="chip" id="chSnd" data-s="off">SIAGA</span></li>
+        <li><span>Kamera</span><span class="chip" id="chCam" data-s="off">SIAGA</span></li>
+      </ul>
+      <div class="row">
+        <label for="sens"><span>Sensitivitas</span><span id="sensV">5 / 10</span></label>
+        <input type="range" id="sens" min="1" max="10" step="1" value="5">
+        <p class="hint">Makin tinggi, makin kecil penyimpangan yang dianggap anomali.</p>
+      </div>
+      <div class="btns">
+        <button class="primary" id="toggle" type="button">Mulai pemindaian</button>
+        <button id="calib" type="button" disabled>Kalibrasi ulang</button>
+        <button id="export" type="button" disabled>Ekspor data</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid" aria-label="Modul sensor">
+    <article class="panel mod wide">
+      <div class="mod-head"><span class="lbl">Kamera (visual)</span><span class="chip" id="camChip" data-s="off">SIAGA</span></div>
+      <div class="camwrap" id="camWrap">
+        <video id="camVid" playsinline muted autoplay></video>
+        <canvas id="camOv" aria-label="Lapisan penanda anomali di atas gambar kamera"></canvas>
+        <p class="cam-ph" id="camPh">Kamera belum aktif. Tekan &quot;Mulai pemindaian&quot; dan izinkan kamera.</p>
+      </div>
+      <div class="read-row"><p class="read"><span id="camV">—</span><small>% area</small></p><span class="sub-read" id="camD">kecerahan — · 0 objek</span></div>
+      <div class="cam-tools"><button id="camFlip" type="button" disabled>Balik kamera depan / belakang</button></div>
+      <p class="why" id="camWhy" hidden></p>
+      <div class="lbl">Tangkapan anomali</div>
+      <div class="gal" id="gal" aria-live="polite"><p class="gal-empty" id="galEmpty">Belum ada tangkapan. Gambar otomatis tersimpan saat kamera mendeteksi anomali.</p></div>
+      <p class="hint">Kamera membandingkan tiap frame dengan latar yang dipelajari. Kotak kuning atau merah menandai area yang berubah, titik terang di ruang gelap ditandai &quot;CAHAYA&quot;. Debu atau serangga dekat lensa, bayangan, dan perubahan eksposur otomatis sering terbaca sebagai anomali. Gambar tidak dikirim ke mana pun.</p>
+    </article>
+    <article class="panel mod">
+      <div class="mod-head"><span class="lbl">Medan magnet (EMF)</span><span class="chip" id="emfChip" data-s="off">SIAGA</span></div>
+      <div class="read-row"><p class="read"><span id="emfV">—</span><small>µT</small></p><span class="sub-read" id="emfD">Δ — µT dari latar</span></div>
+      <div class="segs" id="emfSegs"><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg"></i></div>
+      <canvas class="trace" id="emfCv" aria-label="Grafik penyimpangan medan magnet 15 detik terakhir"></canvas>
+      <p class="why" id="emfWhy" hidden></p>
+      <p class="hint">Latar bumi sekitar 25 sampai 65 µT. Yang dinilai adalah selisih dari latar yang dikalibrasi. 1 µT sama dengan 10 mG.</p>
+    </article>
+
+    <article class="panel mod">
+      <div class="mod-head"><span class="lbl">Getaran (akselerometer)</span><span class="chip" id="vibChip" data-s="off">SIAGA</span></div>
+      <div class="read-row"><p class="read"><span id="vibV">—</span><small>Hz</small></p><span class="sub-read" id="vibA">amplitudo — m/s²</span></div>
+      <div class="vib-wrap">
+        <canvas class="vib" id="vibCv" aria-label="Spektrum getaran 1 sampai 30 Hz"></canvas>
+        <span class="fx" style="left:3%">1</span>
+        <span class="fx" style="left:31%">10</span>
+        <span class="fx" style="left:62%">19 Hz</span>
+        <span class="fx" style="left:96%">30</span>
+      </div>
+      <p class="why" id="vibWhy" hidden></p>
+      <p class="hint" id="vibHint">Pita 17.5 sampai 20.5 Hz ditandai. Laju sampel: —.</p>
+    </article>
+
+    <article class="panel mod wide">
+      <div class="mod-head"><span class="lbl">Suara (mikrofon)</span><span class="chip" id="sndChip" data-s="off">SIAGA</span></div>
+      <div class="read-row"><p class="read"><span id="sndV">—</span><small>dBFS</small></p><span class="sub-read" id="sndD">pita suara — dB dari latar</span></div>
+      <div class="spec-wrap">
+        <canvas class="spec" id="specCv" aria-label="Spektrogram mikrofon bergulir"></canvas>
+        <div class="band"><span>300–3400 Hz · suara manusia</span></div>
+        <span class="ax" style="top:2px">8k</span>
+        <span class="ax" style="top:calc(50% - 6px)">4k</span>
+        <span class="ax" style="bottom:2px">0</span>
+      </div>
+      <p class="why" id="sndWhy" hidden></p>
+      <p class="hint">Warna menunjukkan energi di atas latar tiap frekuensi. Mikrofon ponsel tidak merekam infrasonik, dan dBFS bukan desibel tekanan suara.</p>
+    </article>
+  </section>
+
+  <section class="panel log">
+    <div class="log-head"><h2 class="lbl">Log kejadian</h2></div>
+    <ol class="entries" id="log"></ol>
+  </section>
+
+  <section class="panel theory">
+    <h2 class="lbl">Catatan teori dan batas alat</h2>
+    <details>
+      <summary>Medan magnet</summary>
+      <p>Penyelidik paranormal menganggap lonjakan medan elektromagnetik sebagai tanda kehadiran. Magnetometer ponsel mengukur kuat medan total dalam mikrotesla. Karena latar bumi besar, aplikasi ini membandingkan dengan latar yang dikalibrasi di awal. Magnet speaker, casing logam, kabel di dinding, dan trafo adalah penyebab yang jauh lebih umum.</p>
+    </details>
+    <details>
+      <summary>Getaran dan 19 Hz</summary>
+      <p>Pada 1998 Vic Tandy dan Tony Lawrence melaporkan gelombang berdiri sekitar 19 Hz dari sebuah kipas di laboratorium. Orang di ruangan itu merasa gelisah dan melihat bayangan samar, dan frekuensi itu dekat dengan resonansi bola mata. Akselerometer ponsel bisa melihat getaran lantai atau meja sampai sekitar 30 Hz bila lajunya 60 Hz. Ini getaran yang merambat lewat permukaan, bukan tekanan udara.</p>
+    </details>
+    <details>
+      <summary>Suara dan EVP</summary>
+      <p>Electronic Voice Phenomena populer lewat Friedrich Jürgenson dan Konstantīns Raudive pada 1960-an. Suara manusia berada di sekitar 300 sampai 3400 Hz, maka energi di pita itu dihitung relatif terhadap latar ruangan. Pareidolia pendengaran dan interferensi radio menjelaskan hampir semua kasus.</p>
+    </details>
+    <details>
+      <summary>Kamera</summary>
+      <p>Frame diperkecil, lalu tiap area dibandingkan dengan model latar yang diperbarui perlahan. Area yang menyimpang melewati ambang adaptif ditandai, dikelompokkan menjadi kotak, dan diberi skor dari luas serta kecerahannya. Bila lebih dari separuh gambar berubah sekaligus, ponsel dianggap bergeser dan skor ditahan. Kamera biasa tidak melihat inframerah, jadi &quot;sosok&quot; di video hampir selalu serangga, debu, pantulan lensa, atau derau sensor di cahaya redup.</p>
+    </details>
+    <details>
+      <summary>Yang tidak bisa dibaca ponsel</summary>
+      <p>Web tidak punya akses ke sensor suhu ruang, jadi titik dingin tidak diukur di sini. Safari di iPhone tidak menyediakan magnetometer, sehingga EMF hanya jalan di Chrome Android. Mikrofon ponsel memotong frekuensi sangat rendah, itu sebabnya infrasonik dibaca lewat getaran.</p>
+    </details>
+    <details>
+      <summary>Cara indeks dihitung</summary>
+      <p>Tiap sensor aktif (magnetometer, akselerometer, mikrofon, kamera) diberi skor 0 sampai 1. Indeks memadukan skor tertinggi (55%) dengan rata-rata berbobot (45%), lalu diperbesar bila beberapa sensor menyimpang bersamaan. Level: 0 tenang, 1 lemah, 2 terdeteksi, 3 kuat, 4 sangat kuat, 5 ekstrem. Sensitivitas menggeser ambang skor.</p>
+    </details>
+  </section>
+
+  <footer>GHOST DETECTOR PRO · SENSOR PERANGKAT</footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var cs = getComputedStyle(document.documentElement);
+  var COL = {
+    accent: cs.getPropertyValue('--accent').trim(), ok: cs.getPropertyValue('--ok').trim(),
+    warn: cs.getPropertyValue('--warn').trim(), crit: cs.getPropertyValue('--crit').trim(),
+    dim: cs.getPropertyValue('--dim').trim(), line: cs.getPropertyValue('--line').trim()
+  };
+  var clamp = function (x, a, b) { return Math.min(b, Math.max(a, x)); };
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var fmt = function (s) { s = Math.floor(s); return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s / 60) % 60) + ':' + pad(s % 60); };
+
+  var DT = 0.1, HN = 150;
+  var LEVELS = ['Tenang', 'Lemah', 'Terdeteksi', 'Kuat', 'Sangat kuat', 'Ekstrem'];
+  var LV_CUT = [15, 30, 50, 70, 85];
+  var levelOf = function (v) { var l = 0; while (l < LV_CUT.length && v >= LV_CUT[l]) l++; return l; };
+
+  var CAUSE = {
+    mag: 'magnet pada speaker atau casing, logam besar, kabel di dinding, atau trafo',
+    vib: 'langkah kaki, kipas, mesin, kendaraan lewat, atau lantai yang beresonansi',
+    snd: 'derau latar, suara jauh, angin, atau pareidolia pendengaran',
+    cam: 'serangga atau debu dekat lensa, bayangan, pantulan, perubahan eksposur otomatis, atau orang dan hewan yang bergerak'
+  };
+  var TAG = { mag: 'EMF', vib: 'GETAR', snd: 'SUARA', cam: 'KAMERA' };
+  var NAME = { mag: 'Penyimpangan medan magnet', vib: 'Getaran tidak biasa', snd: 'Energi tidak biasa di pita suara', cam: 'Anomali visual di kamera' };
+
+  var S = {
+    running: false, t: 0, t0: 0, idx: 0, peak: 0, evCount: 0,
+    magB: null, magBase: null, magN: 0, magSum: 0, magDev: 0, magLast: 0, magH: [],
+    spec: [], fs: 0, vibDom: 0, vibAmp: 0, vibA19: 0, vibRms: 0, vibCap: false, vibLast: 0, vibClock: 0,
+    dB: null, voc: 0, sndLast: 0, sndWarm: 0,
+    rows: [], rowClock: 0,
+    camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false
+  };
+  var SENS = { mag: { st: 'idle', obj: null }, vib: { st: 'idle' }, snd: { st: 'idle', stream: null, ac: null, an: null }, cam: { st: 'idle', stream: null, facing: 'environment' } };
+  var timer = null, wake = null;
+
+  var el = {
+    led: $('led'), state: $('stateText'), clock: $('clock'), gauge: $('gauge'), arc: $('gArc'), num: $('gNum'),
+    level: $('levelText'), evN: $('stEv'), peak: $('stPeak'), dur: $('stDur'),
+    sens: $('sens'), sensV: $('sensV'), toggle: $('toggle'), calib: $('calib'), exp: $('export'),
+    emfV: $('emfV'), emfD: $('emfD'), emfChip: $('emfChip'), segs: $('emfSegs').children, emfWhy: $('emfWhy'),
+    vibV: $('vibV'), vibA: $('vibA'), vibChip: $('vibChip'), vibWhy: $('vibWhy'), vibHint: $('vibHint'),
+    sndV: $('sndV'), sndD: $('sndD'), sndChip: $('sndChip'), sndWhy: $('sndWhy'),
+    chMag: $('chMag'), chVib: $('chVib'), chSnd: $('chSnd'), chCam: $('chCam'), log: $('log'),
+    camV: $('camV'), camD: $('camD'), camChip: $('camChip'), camWhy: $('camWhy'), camPh: $('camPh'), camFlip: $('camFlip'), gal: $('gal')
+  };
+
+  (function () {
+    var g = $('gTicks'), s = '';
+    for (var i = 0; i <= 10; i++) {
+      var a = Math.PI - i * Math.PI / 10, r1 = 84, r2 = (i % 5 === 0) ? 74 : 79;
+      s += '<line class="g-tick" x1="' + (120 + r1 * Math.cos(a)).toFixed(1) + '" y1="' + (125 - r1 * Math.sin(a)).toFixed(1) +
+        '" x2="' + (120 + r2 * Math.cos(a)).toFixed(1) + '" y2="' + (125 - r2 * Math.sin(a)).toFixed(1) + '"/>';
+    }
+    g.innerHTML = s;
+  })();
+
+  var LUT = (function () {
+    var stops = [[0, 9, 16, 18], [0.35, 18, 64, 72], [0.65, 255, 178, 62], [1, 255, 244, 214]], out = [];
+    for (var i = 0; i < 64; i++) {
+      var v = i / 63, k = 0;
+      while (k < stops.length - 2 && v > stops[k + 1][0]) k++;
+      var a = stops[k], b = stops[k + 1], u = clamp((v - a[0]) / (b[0] - a[0]), 0, 1);
+      out.push('rgb(' + Math.round(a[1] + (b[1] - a[1]) * u) + ',' + Math.round(a[2] + (b[2] - a[2]) * u) + ',' + Math.round(a[3] + (b[3] - a[3]) * u) + ')');
+    }
+    return out;
+  })();
+
+  /* canvases */
+  var CV = {}, DPR = 1;
+  ['emfCv', 'vibCv', 'specCv', 'camOv'].forEach(function (id) { CV[id] = { el: $(id), ctx: $(id).getContext('2d'), w: 0, h: 0 }; });
+  function fit(c) {
+    var r = c.el.getBoundingClientRect();
+    var w = Math.max(10, Math.round(r.width * DPR)), h = Math.max(10, Math.round(r.height * DPR));
+    if (c.w !== w || c.h !== h) { c.el.width = w; c.el.height = h; c.w = w; c.h = h; return true; }
+    return false;
+  }
+  function clearSpec() { var c = CV.specCv; c.ctx.fillStyle = LUT[0]; c.ctx.fillRect(0, 0, c.w, c.h); }
+  function fitAll() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    Object.keys(CV).forEach(function (k) { if (fit(CV[k]) && k === 'specCv') clearSpec(); });
+  }
+
+  var SN = 48, binFloor = null;
+  function specCol(vals) {
+    var c = CV.specCv, x = c.ctx, w = c.w, h = c.h, step = Math.max(1, Math.round(DPR * 2));
+    x.drawImage(c.el, -step, 0);
+    var bh = h / SN;
+    for (var i = 0; i < SN; i++) {
+      x.fillStyle = LUT[Math.round(clamp(vals[i], 0, 1) * 63)];
+      x.fillRect(w - step, h - (i + 1) * bh, step, Math.ceil(bh) + 1);
+    }
+  }
+
+  function drawTrace(c, data, lo, hi, color, thr) {
+    var x = c.ctx, w = c.w, h = c.h;
+    x.clearRect(0, 0, w, h);
+    x.strokeStyle = COL.line; x.lineWidth = 1;
+    for (var g = 1; g < 4; g++) { x.beginPath(); x.moveTo(0, h * g / 4); x.lineTo(w, h * g / 4); x.stroke(); }
+    var Y = function (v) { return h - 3 * DPR - clamp((v - lo) / (hi - lo), 0, 1) * (h - 6 * DPR); };
+    if (thr != null) {
+      x.save(); x.setLineDash([4 * DPR, 4 * DPR]); x.strokeStyle = COL.warn; x.globalAlpha = 0.7;
+      x.beginPath(); x.moveTo(0, Y(thr)); x.lineTo(w, Y(thr)); x.stroke(); x.restore();
+    }
+    if (!data.length) return;
+    var px = function (i) { return w - (data.length - 1 - i) / (HN - 1) * w; };
+    x.beginPath(); x.moveTo(px(0), h);
+    for (var i = 0; i < data.length; i++) x.lineTo(px(i), Y(data[i]));
+    x.lineTo(px(data.length - 1), h); x.closePath();
+    x.globalAlpha = 0.14; x.fillStyle = color; x.fill(); x.globalAlpha = 1;
+    x.beginPath();
+    for (var k = 0; k < data.length; k++) { if (k) x.lineTo(px(k), Y(data[k])); else x.moveTo(px(k), Y(data[k])); }
+    x.strokeStyle = color; x.lineWidth = 1.6 * DPR; x.stroke();
+    x.beginPath(); x.arc(px(data.length - 1), Y(data[data.length - 1]), 3 * DPR, 0, 6.2832); x.fillStyle = color; x.fill();
+  }
+
+  var vibScale = 0.03;
+  function drawVib() {
+    var c = CV.vibCv, x = c.ctx, w = c.w, h = c.h;
+    x.clearRect(0, 0, w, h);
+    var X = function (f) { return (f - 1) / 29 * w; };
+    x.fillStyle = COL.accent; x.globalAlpha = 0.14; x.fillRect(X(17.5), 0, X(20.5) - X(17.5), h); x.globalAlpha = 1;
+    x.save(); x.setLineDash([4 * DPR, 4 * DPR]); x.strokeStyle = COL.accent; x.globalAlpha = 0.7;
+    x.beginPath(); x.moveTo(X(19), 0); x.lineTo(X(19), h); x.stroke(); x.restore();
+    var sp = S.spec; if (!sp.length) return;
+    var mx = 0, i;
+    for (i = 0; i < sp.length; i++) mx = Math.max(mx, sp[i]);
+    vibScale += (Math.max(0.03, mx * 1.2) - vibScale) * 0.1;
+    var bw = w / sp.length;
+    for (i = 0; i < sp.length; i++) {
+      var f = 1 + i * 0.5, bh = clamp(sp[i] / vibScale, 0, 1) * (h - 14 * DPR);
+      x.fillStyle = (f >= 17.5 && f <= 20.5) ? COL.accent : COL.ok;
+      x.globalAlpha = 0.85;
+      x.fillRect(i * bw + 0.5 * DPR, h - 12 * DPR - bh, Math.max(1, bw - 1 * DPR), bh);
+    }
+    x.globalAlpha = 1;
+  }
+
+  /* log */
+  function addLog(tag, text, sev, thumb) {
+    var first = el.log.firstChild;
+    if (first && first.getAttribute('data-empty')) el.log.removeChild(first);
+    var li = document.createElement('li');
+    var tm = document.createElement('time'); tm.textContent = fmt(S.t);
+    var ch = document.createElement('span'); ch.className = 'chip'; ch.setAttribute('data-s', sev || 'ok'); ch.textContent = tag;
+    var tx = document.createElement('span'); tx.className = 'txt'; tx.textContent = text;
+    if (thumb) { var im = document.createElement('img'); im.className = 'thumb'; im.src = thumb; im.alt = 'Tangkapan anomali kamera'; tx.appendChild(im); }
+    li.appendChild(tm); li.appendChild(ch); li.appendChild(tx);
+    el.log.insertBefore(li, el.log.firstChild);
+    while (el.log.children.length > 80) el.log.removeChild(el.log.lastChild);
+  }
+  function emptyLog(msg) {
+    el.log.innerHTML = '';
+    var li = document.createElement('li'); li.setAttribute('data-empty', '1');
+    var tm = document.createElement('time'); tm.textContent = '--:--:--';
+    var ch = document.createElement('span'); ch.className = 'chip'; ch.setAttribute('data-s', 'off'); ch.textContent = 'SISTEM';
+    var tx = document.createElement('span'); tx.className = 'txt'; tx.textContent = msg;
+    li.appendChild(tm); li.appendChild(ch); li.appendChild(tx); el.log.appendChild(li);
+  }
+
+  /* support + sensor state */
+  var SECURE = window.isSecureContext !== false;
+  var SUP = {
+    mag: SECURE && ('Magnetometer' in window),
+    vib: ('DeviceMotionEvent' in window),
+    snd: SECURE && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+    cam: SECURE && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+  };
+  var WHY = {
+    mag: { off: 'Magnetometer web hanya ada di Chrome Android. Safari iPhone dan sebagian browser tidak menyediakannya.', denied: 'Izin sensor ditolak. Izinkan "Sensor gerak" di pengaturan situs, lalu muat ulang.' },
+    vib: { off: 'Perangkat atau browser ini tidak memberi data akselerometer.', denied: 'Izin gerak ditolak. Izinkan akses gerak dan orientasi, lalu muat ulang.' },
+    snd: { off: 'Mikrofon tidak tersedia di perangkat atau browser ini.', denied: 'Izin mikrofon ditolak. Izinkan mikrofon di pengaturan situs, lalu muat ulang.' },
+    cam: { off: 'Kamera tidak tersedia di perangkat atau browser ini, atau sedang dipakai aplikasi lain.', denied: 'Izin kamera ditolak. Izinkan kamera di pengaturan situs, lalu muat ulang.' }
+  };
+  function setState(k, st) { SENS[k].st = st; }
+  if (!SECURE) $('secWarn').hidden = false;
+  ['mag', 'vib', 'snd', 'cam'].forEach(function (k) { if (!SUP[k]) SENS[k].st = 'off'; });
+  if (!SUP.cam) el.camFlip.disabled = true;
+
+  /* magnetometer */
+  function onMag() {
+    var m = SENS.mag.obj; if (!m || m.x == null) return;
+    var b = Math.sqrt(m.x * m.x + m.y * m.y + m.z * m.z);
+    S.magLast = performance.now();
+    S.magB = S.magB == null ? b : S.magB + 0.3 * (b - S.magB);
+    if (S.magBase == null) {
+      S.magSum += b; S.magN++;
+      if (S.magN >= 20) S.magBase = S.magSum / S.magN;
+      S.magDev = 0;
+    } else {
+      S.magDev = Math.abs(S.magB - S.magBase);
+      if (S.magDev < 1.5) S.magBase += 0.003 * (S.magB - S.magBase);
+    }
+    if (SENS.mag.st === 'wait') setState('mag', 'on');
+  }
+  function startMag() {
+    if (!SUP.mag) { setState('mag', 'off'); return Promise.resolve(); }
+    try {
+      var m = new Magnetometer({ frequency: 20 });
+      m.addEventListener('reading', onMag);
+      m.addEventListener('error', function (e) {
+        var n = e && e.error && e.error.name;
+        setState('mag', n === 'NotAllowedError' || n === 'SecurityError' ? 'denied' : 'off');
+      });
+      m.start(); SENS.mag.obj = m; setState('mag', 'wait');
+    } catch (err) { setState('mag', err && (err.name === 'SecurityError' || err.name === 'NotAllowedError') ? 'denied' : 'off'); }
+    return Promise.resolve();
+  }
+  function stopMag() { try { if (SENS.mag.obj) SENS.mag.obj.stop(); } catch (e) {} SENS.mag.obj = null; }
+
+  /* accelerometer */
+  var VB = [], vLP = null;
+  function onMotion(e) {
+    var a = e.accelerationIncludingGravity;
+    if (!a || a.x == null) return;
+    var t = performance.now(), m = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+    vLP = vLP == null ? m : vLP + 0.05 * (m - vLP);
+    VB.push([t, m - vLP]); if (VB.length > 256) VB.shift();
+    S.vibLast = t;
+    if (SENS.vib.st === 'wait') setState('vib', 'on');
+  }
+  function startVib() {
+    if (!SUP.vib) { setState('vib', 'off'); return Promise.resolve(); }
+    var req = (typeof DeviceMotionEvent.requestPermission === 'function') ? DeviceMotionEvent.requestPermission() : Promise.resolve('granted');
+    return req.then(function (r) {
+      if (r !== 'granted') { setState('vib', 'denied'); return; }
+      window.addEventListener('devicemotion', onMotion); setState('vib', 'wait');
+    }).catch(function () { setState('vib', 'denied'); });
+  }
+  function stopVib() { window.removeEventListener('devicemotion', onMotion); VB = []; vLP = null; }
+
+  function vibSpec() {
+    var n = VB.length; if (n < 96) return;
+    var N = Math.min(n, 128), off = n - N, t0 = VB[off][0], tN = VB[n - 1][0];
+    var span = (tN - t0) / 1000; if (span <= 0) return;
+    var fs = (N - 1) / span; S.fs = fs;
+    var w = [], sw = 0, i, f, idx, ss = 0;
+    for (i = 0; i < N; i++) { w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)); sw += w[i]; ss += VB[off + i][1] * VB[off + i][1]; }
+    S.vibRms = Math.sqrt(ss / N);
+    var fmax = Math.min(30, fs / 2 - 0.5), res = [];
+    for (f = 1, idx = 0; idx < 59; f += 0.5, idx++) {
+      if (f > fmax) { res.push(0); continue; }
+      var re = 0, im = 0;
+      for (i = 0; i < N; i++) {
+        var ph = 2 * Math.PI * f * ((VB[off + i][0] - t0) / 1000), v = VB[off + i][1] * w[i];
+        re += v * Math.cos(ph); im -= v * Math.sin(ph);
+      }
+      res.push(2 * Math.sqrt(re * re + im * im) / sw);
+    }
+    S.spec = res;
+    S.vibCap = fmax < 20.5;
+    var dom = 0, domA = 0, a19 = 0, valid = [];
+    for (idx = 2; idx < 59; idx++) {
+      if (res[idx] > domA) { domA = res[idx]; dom = 1 + idx * 0.5; }
+      if (1 + idx * 0.5 <= fmax) valid.push(res[idx]);
+      if (idx >= 33 && idx <= 39) a19 = Math.max(a19, res[idx]);
+    }
+    valid.sort(function (a, b) { return a - b; });
+    S.vibDom = dom; S.vibAmp = domA; S.vibA19 = a19;
+    S.vibFloor = valid.length ? valid[Math.floor(valid.length / 2)] : 0;
+  }
+
+  /* microphone */
+  var FD = null, TD = null;
+  function startSnd() {
+    if (!SUP.snd) { setState('snd', 'off'); return Promise.resolve(); }
+    var AC;
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { setState('snd', 'off'); return Promise.resolve(); }
+    if (AC.resume) AC.resume();
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then(function (stream) {
+      var src = AC.createMediaStreamSource(stream), an = AC.createAnalyser();
+      an.fftSize = 4096; an.smoothingTimeConstant = 0.5; an.minDecibels = -110; an.maxDecibels = -10;
+      src.connect(an);
+      SENS.snd.stream = stream; SENS.snd.ac = AC; SENS.snd.an = an;
+      FD = new Float32Array(an.frequencyBinCount); TD = new Float32Array(an.fftSize);
+      binFloor = null; S.sndWarm = 0; S.dB = null; S.voc = 0;
+      setState('snd', 'on');
+    }).catch(function (err) {
+      try { AC.close(); } catch (e) {}
+      setState('snd', err && (err.name === 'NotAllowedError' || err.name === 'SecurityError') ? 'denied' : 'off');
+    });
+  }
+  function stopSnd() {
+    try { if (SENS.snd.stream) SENS.snd.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    try { if (SENS.snd.ac) SENS.snd.ac.close(); } catch (e) {}
+    SENS.snd.stream = null; SENS.snd.ac = null; SENS.snd.an = null;
+  }
+  function sndStep() {
+    var an = SENS.snd.an, sr = SENS.snd.ac.sampleRate, bin = sr / an.fftSize, i, j;
+    an.getFloatFrequencyData(FD); an.getFloatTimeDomainData(TD);
+    S.sndLast = performance.now();
+    var ss = 0; for (i = 0; i < TD.length; i++) ss += TD[i] * TD[i];
+    var rms = Math.sqrt(ss / TD.length); S.dB = rms > 0 ? Math.max(-100, 20 * Math.log10(rms)) : -100;
+    if (!binFloor) { binFloor = new Float32Array(SN); for (i = 0; i < SN; i++) binFloor[i] = NaN; }
+    var vals = new Array(SN), vSum = 0, vN = 0;
+    for (i = 0; i < SN; i++) {
+      var f0 = i / SN * 8000, f1 = (i + 1) / SN * 8000, b0 = Math.floor(f0 / bin), b1 = Math.max(b0, Math.floor(f1 / bin)), db = -200;
+      for (j = b0; j <= b1 && j < FD.length; j++) if (FD[j] > db) db = FD[j];
+      if (!isFinite(db) || db < -200) db = -120;
+      if (isNaN(binFloor[i])) binFloor[i] = db;
+      binFloor[i] += (db < binFloor[i] ? 0.2 : 0.004) * (db - binFloor[i]);
+      var ex = db - binFloor[i];
+      vals[i] = clamp(0.1 + ex / 30, 0, 1);
+      var fc = (f0 + f1) / 2; if (fc >= 300 && fc <= 3400) { vSum += ex; vN++; }
+    }
+    S.sndWarm++;
+    S.voc = (S.sndWarm > 30 && vN) ? Math.max(0, vSum / vN) : 0;
+    specCol(vals);
+  }
+
+  /* camera */
+  var CW = 64, CH = 48, GX = 16, GN = 192, GY = 12;
+  var camBg = null, camG = new Float32Array(CW * CH);
+  var camCv = document.createElement('canvas'); camCv.width = CW; camCv.height = CH;
+  var camCx = camCv.getContext('2d', { willReadFrequently: true });
+  var RM = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function camAR() { var r = $('camWrap').getBoundingClientRect(); return (r.width > 10 && r.height > 10) ? r.width / r.height : 4 / 3; }
+  function cropRect(v, ar) {
+    var vw = v.videoWidth, vh = v.videoHeight, sw, sh;
+    if (vw / vh > ar) { sh = vh; sw = vh * ar; } else { sw = vw; sh = vw / ar; }
+    return { sx: (vw - sw) / 2, sy: (vh - sh) / 2, sw: sw, sh: sh };
+  }
+  function liveBoxes() { return (performance.now() - S.camBoxT < 700) ? S.camBoxes : []; }
+
+  function startCam() {
+    if (!SUP.cam) { setState('cam', 'off'); return Promise.resolve(); }
+    var vid = $('camVid'), want = SENS.cam.facing;
+    setState('cam', 'wait');
+    var open = function (c) { return navigator.mediaDevices.getUserMedia({ video: c, audio: false }); };
+    return open({ facingMode: { ideal: want }, width: { ideal: 640 }, height: { ideal: 480 } }).catch(function (err) {
+      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) throw err;
+      return open(true);
+    }).then(function (stream) {
+      SENS.cam.stream = stream;
+      var tr = stream.getVideoTracks()[0], st = (tr && tr.getSettings) ? tr.getSettings() : {};
+      S.camMirror = st.facingMode === 'user' || (!st.facingMode && want === 'user');
+      vid.className = S.camMirror ? 'mirror' : '';
+      vid.muted = true; vid.setAttribute('playsinline', ''); vid.srcObject = stream;
+      if (tr) tr.addEventListener('ended', function () { setState('cam', 'off'); });
+      return vid.play().catch(function () {}).then(function () { camBg = null; S.camWarm = 0; S.camS = 0; setState('cam', 'on'); });
+    }).catch(function (err) {
+      setState('cam', err && (err.name === 'NotAllowedError' || err.name === 'SecurityError') ? 'denied' : 'off');
+    });
+  }
+  function stopCam() {
+    try { if (SENS.cam.stream) SENS.cam.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    SENS.cam.stream = null; camBg = null;
+    try { $('camVid').srcObject = null; } catch (e) {}
+    S.camBoxes = []; S.camHeat.fill(0);
+  }
+
+  function camStep() {
+    var v = $('camVid'); if (!v.videoWidth || v.readyState < 2) return;
+    var sens = +el.sens.value, k = 0.5 + sens * 0.1;
+    var r = cropRect(v, camAR());
+    camCx.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, CW, CH);
+    var d = camCx.getImageData(0, 0, CW, CH).data, n = CW * CH, i, g = camG, sum = 0;
+    for (i = 0; i < n; i++) { g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; sum += g[i]; }
+    S.camLum = sum / n;
+    if (!camBg) { camBg = new Float32Array(g); S.camWarm = 1; return; }
+    S.camWarm++;
+    var mb = 0; for (i = 0; i < n; i++) mb += camBg[i]; mb /= n;
+    var gain = clamp(mb / Math.max(S.camLum, 1), 0.7, 1.4);
+    var cAbs = new Float32Array(GN), cSig = new Float32Array(GN), cBg = new Float32Array(GN), x, y, ci, dv;
+    for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
+      i = y * CW + x; ci = (y >> 2) * GX + (x >> 2); dv = g[i] * gain - camBg[i];
+      cSig[ci] += dv; cAbs[ci] += Math.abs(dv); cBg[ci] += camBg[i];
+    }
+    for (ci = 0; ci < GN; ci++) { cAbs[ci] /= 16; cSig[ci] /= 16; cBg[ci] /= 16; }
+    var nz = Array.prototype.slice.call(cAbs).sort(function (a, b) { return a - b; })[GN >> 1];
+    var thr = Math.max(5, (8 + 3 * nz) * (1.5 - sens * 0.1));
+    var fl = new Uint8Array(GN), nf = 0;
+    if (S.camWarm >= 20) for (ci = 0; ci < GN; ci++) if (cAbs[ci] > thr) { fl[ci] = 1; nf++; }
+
+    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22);
+    S.camShake = shake;
+    var rate = (S.camWarm < 30 || shake) ? (shake ? 0.4 : 0.2) : 0.03;
+    for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
+      i = y * CW + x; ci = (y >> 2) * GX + (x >> 2);
+      camBg[i] += (fl[ci] && !shake ? 0.003 : rate) * (g[i] * gain - camBg[i]);
+    }
+    for (ci = 0; ci < GN; ci++) S.camHeat[ci] = Math.min(1, S.camHeat[ci] * 0.82 + ((fl[ci] && !shake) ? 0.6 : 0));
+    if (S.camWarm < 20 || shake) { S.camS *= 0.7; S.camArea = 0; S.camObj = 0; if (shake) S.camBoxes = []; return; }
+
+    var seen = new Uint8Array(GN), boxes = [], tot = 0, s0, st, c, gx, gy, nb, j;
+    for (s0 = 0; s0 < GN; s0++) {
+      if (!fl[s0] || seen[s0]) continue;
+      st = [s0]; seen[s0] = 1;
+      var size = 0, mnx = 99, mny = 99, mxx = -1, mxy = -1, aS = 0, sS = 0, bS = 0;
+      while (st.length) {
+        c = st.pop(); gx = c % GX; gy = (c / GX) | 0; size++;
+        if (gx < mnx) mnx = gx; if (gx > mxx) mxx = gx; if (gy < mny) mny = gy; if (gy > mxy) mxy = gy;
+        aS += cAbs[c]; sS += cSig[c]; bS += cBg[c];
+        nb = [gx > 0 ? c - 1 : -1, gx < GX - 1 ? c + 1 : -1, gy > 0 ? c - GX : -1, gy < GY - 1 ? c + GX : -1];
+        for (j = 0; j < 4; j++) if (nb[j] >= 0 && fl[nb[j]] && !seen[nb[j]]) { seen[nb[j]] = 1; st.push(nb[j]); }
+      }
+      var mAbs = aS / size, mSig = sS / size, mBg = bS / size;
+      if (size < 2 && mAbs < thr * 2.2) continue;
+      tot += size;
+      boxes.push({ x0: mnx / GX, x1: (mxx + 1) / GX, y0: mny / GY, y1: (mxy + 1) / GY, type: (mSig > 0 && mBg < 90) ? 'CAHAYA' : 'GERAK', size: size, delta: Math.round(mAbs) });
+    }
+    var f = tot / GN, areaS = clamp((f * 100 * k - 2) / 18, 0, 1), orbS = 0;
+    boxes.forEach(function (b) { if (b.type === 'CAHAYA' && b.size <= 14) orbS = Math.max(orbS, clamp((b.delta - 15) / 50, 0, 1) * 0.85); });
+    var raw = Math.max(areaS, orbS);
+    S.camS = raw > S.camS ? raw : S.camS * 0.85 + raw * 0.15;
+    var sev = S.camS > 0.7 ? 'crit' : 'warn';
+    boxes.forEach(function (b) { b.sev = sev; b.label = b.type === 'CAHAYA' ? 'CAHAYA +' + b.delta : 'GERAK ' + Math.max(1, Math.round(b.size / GN * 100)) + '%'; });
+    S.camArea = f * 100; S.camObj = boxes.length;
+    if (boxes.length) { S.camBoxes = boxes; S.camBoxT = performance.now(); }
+  }
+
+  function drawBoxes(x, w, h, boxes, sc, alpha, pulse) {
+    x.save();
+    boxes.forEach(function (b) {
+      var bx0 = S.camMirror ? 1 - b.x1 : b.x0, bx1 = S.camMirror ? 1 - b.x0 : b.x1;
+      var a = Math.max(0, bx0 * w - 3 * sc), c = Math.max(0, b.y0 * h - 3 * sc), e = Math.min(w, bx1 * w + 3 * sc), f = Math.min(h, b.y1 * h + 3 * sc);
+      var col = b.sev === 'crit' ? COL.crit : COL.warn;
+      x.globalAlpha = alpha * 0.14; x.fillStyle = col; x.fillRect(a, c, e - a, f - c);
+      x.globalAlpha = alpha; x.strokeStyle = col; x.lineWidth = (1.5 + pulse) * sc;
+      var L = Math.min(14 * sc, (e - a) / 2, (f - c) / 2);
+      x.beginPath();
+      x.moveTo(a, c + L); x.lineTo(a, c); x.lineTo(a + L, c);
+      x.moveTo(e - L, c); x.lineTo(e, c); x.lineTo(e, c + L);
+      x.moveTo(e, f - L); x.lineTo(e, f); x.lineTo(e - L, f);
+      x.moveTo(a + L, f); x.lineTo(a, f); x.lineTo(a, f - L);
+      x.stroke();
+      x.font = '500 ' + Math.round(10 * sc) + 'px "IBM Plex Mono", ui-monospace, monospace';
+      var tw = x.measureText(b.label).width + 8 * sc, th = 14 * sc;
+      var tx = Math.min(Math.max(0, a), w - tw), ty = c - th; if (ty < 0) ty = f;
+      x.fillStyle = col; x.fillRect(tx, ty, tw, th);
+      x.fillStyle = '#1a1204'; x.textBaseline = 'middle'; x.fillText(b.label, tx + 4 * sc, ty + th / 2 + 0.5 * sc);
+    });
+    x.restore();
+  }
+  function camSnap() {
+    var v = $('camVid'); if (!v.videoWidth) return null;
+    var ar = camAR(), w = 240, h = Math.round(w / ar), c = document.createElement('canvas'), x, r = cropRect(v, ar);
+    c.width = w; c.height = h; x = c.getContext('2d');
+    x.save(); if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
+    x.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h); x.restore();
+    drawBoxes(x, w, h, S.camBoxes, 1, 1, 0.5);
+    try { return c.toDataURL('image/jpeg', 0.65); } catch (e) { return null; }
+  }
+  function addGallery(url, desc, sev) {
+    var em = $('galEmpty'); if (em && em.parentNode) em.parentNode.removeChild(em);
+    var fg = document.createElement('figure'); fg.className = 'gal-item'; fg.setAttribute('data-s', sev || 'warn');
+    var im = document.createElement('img'); im.src = url; im.alt = 'Tangkapan anomali kamera ' + fmt(S.t);
+    var fc = document.createElement('figcaption'); fc.textContent = fmt(S.t) + ' · ' + desc;
+    fg.appendChild(im); fg.appendChild(fc);
+    el.gal.insertBefore(fg, el.gal.firstChild);
+    while (el.gal.children.length > 12) el.gal.removeChild(el.gal.lastChild);
+  }
+  function clearGallery() {
+    el.gal.innerHTML = '<p class="gal-empty" id="galEmpty">Belum ada tangkapan. Gambar otomatis tersimpan saat kamera mendeteksi anomali.</p>';
+  }
+  function drawCam() {
+    var c = CV.camOv, x = c.ctx, w = c.w, h = c.h, now = performance.now(), i;
+    x.clearRect(0, 0, w, h);
+    if (SENS.cam.st !== 'on') return;
+    var cw = w / GX, ch = h / GY, hot = S.camS > 0.45 ? COL.crit : COL.warn;
+    for (i = 0; i < GN; i++) {
+      var hv = S.camHeat[i]; if (hv < 0.05) continue;
+      var gx = i % GX, gy = (i / GX) | 0, mx = S.camMirror ? GX - 1 - gx : gx;
+      x.globalAlpha = Math.min(0.45, hv * 0.45); x.fillStyle = hot; x.fillRect(mx * cw, gy * ch, cw + 1, ch + 1);
+    }
+    x.globalAlpha = 1;
+    var age = now - S.camBoxT;
+    if (S.camBoxes.length && age < 700) drawBoxes(x, w, h, S.camBoxes, DPR, 1 - age / 700, RM ? 0.5 : 0.6 + 0.6 * Math.sin(now / 120));
+    if (!RM && S.camWarm >= 20) { x.globalAlpha = 0.1; x.fillStyle = COL.ok; x.fillRect(0, (now / 18) % h, w, 2 * DPR); x.globalAlpha = 1; }
+    if (S.camS > 0.35 && !S.camShake) {
+      var pu = RM ? 1 : 0.5 + 0.5 * Math.sin(now / 110), ac = S.camS > 0.7 ? COL.crit : COL.warn;
+      x.globalAlpha = 0.3 + 0.45 * pu; x.strokeStyle = ac; x.lineWidth = 4 * DPR; x.strokeRect(2 * DPR, 2 * DPR, w - 4 * DPR, h - 4 * DPR);
+      x.globalAlpha = 0.9; x.fillStyle = ac; x.fillRect(0, 0, w, 20 * DPR);
+      x.fillStyle = '#1a1204'; x.font = '600 ' + Math.round(11 * DPR) + 'px "IBM Plex Mono", ui-monospace, monospace'; x.textBaseline = 'middle';
+      x.fillText('ANOMALI VISUAL TERDETEKSI', 8 * DPR, 10 * DPR + 0.5 * DPR);
+      x.globalAlpha = 1;
+    }
+  }
+
+  /* anomaly engine */
+  function mkTr() { return { on: false, t0: 0, peak: 0, desc: '', quiet: 0, endT: -99, multi: false, snap: null, snapT: -99 }; }
+  var TR = { mag: mkTr(), vib: mkTr(), snd: mkTr(), cam: mkTr() };
+  function track(k, s, desc, cnt, snapFn) {
+    var tr = TR[k];
+    if (!tr.on) {
+      if (s > 0.35 && S.t - tr.endT > 3) { tr.on = true; tr.t0 = S.t; tr.peak = s; tr.desc = desc; tr.quiet = 0; tr.multi = cnt >= 2; tr.snap = snapFn ? snapFn() : null; tr.snapT = S.t; }
+      return;
+    }
+    if (s > tr.peak) { tr.peak = s; tr.desc = desc; if (snapFn && S.t - tr.snapT > 0.5) { tr.snap = snapFn(); tr.snapT = S.t; } }
+    if (cnt >= 2) tr.multi = true;
+    tr.quiet = s < 0.15 ? tr.quiet + DT : 0;
+    if (tr.quiet >= 1) {
+      var dur = S.t - tr.t0 - tr.quiet, sev = tr.peak > 0.7 ? 'crit' : tr.peak > 0.45 ? 'warn' : 'ok';
+      S.evCount++;
+      addLog(TAG[k], NAME[k] + ' · ' + tr.desc + ' · ' + Math.max(0.1, dur).toFixed(1) + ' dtk.' + (tr.multi ? ' Bersamaan dengan sensor lain.' : '') + ' Penyebab lazim: ' + CAUSE[k] + '.', sev, tr.snap);
+      if (k === 'cam' && tr.snap) addGallery(tr.snap, tr.desc, sev);
+      tr.on = false; tr.endT = S.t;
+    }
+  }
+
+  function tick() {
+    S.t = (performance.now() - S.t0) / 1000;
+    var now = performance.now(), sens = +el.sens.value, k = 0.5 + sens * 0.1;
+
+    /* watchdogs: sensor said yes but no data */
+    if (SENS.mag.st === 'wait' && S.t > 2.5) setState('mag', 'off');
+    if (SENS.vib.st === 'wait' && S.t > 2.5) setState('vib', 'off');
+    if (SENS.mag.st === 'on' && now - S.magLast > 3000) setState('mag', 'off');
+    if (SENS.vib.st === 'on' && now - S.vibLast > 3000) setState('vib', 'off');
+
+    if (SENS.cam.st === 'on') camStep();
+    if (SENS.snd.st === 'on' && SENS.snd.an) sndStep();
+    S.vibClock += DT;
+    if (SENS.vib.st === 'on' && S.vibClock >= 0.25) { S.vibClock = 0; vibSpec(); }
+
+    var sE = 0, sI = 0, sV = 0, sC = 0, wsum = 0, wtot = 0;
+    var magOn = SENS.mag.st === 'on' && S.magBase != null, vibOn = SENS.vib.st === 'on' && S.spec.length > 0 && !S.vibCap, sndOn = SENS.snd.st === 'on' && S.sndWarm > 30, camOn = SENS.cam.st === 'on' && S.camWarm >= 20;
+    if (magOn) { sE = clamp((S.magDev * k - 3) / 15, 0, 1); wsum += sE * 0.4; wtot += 0.4; }
+    if (vibOn) {
+      var ratio = S.vibA19 / Math.max(S.vibFloor, 0.002);
+      sI = clamp((ratio - 3) / 9, 0, 1) * clamp((S.vibA19 * k - 0.008) / 0.04, 0, 1);
+      wsum += sI * 0.25; wtot += 0.25;
+    }
+    if (sndOn) { sV = clamp((S.voc * k - 5) / 20, 0, 1); wsum += sV * 0.35; wtot += 0.35; }
+    if (camOn) { sC = S.camShake ? 0 : S.camS; wsum += sC * 0.3; wtot += 0.3; }
+    var sc = [sE, sI, sV, sC], mx = Math.max(sE, sI, sV, sC), cnt = 0, i;
+    for (i = 0; i < 4; i++) if (sc[i] > 0.35) cnt++;
+    var avg = wtot ? wsum / wtot : 0;
+    var tgt = (magOn || vibOn || sndOn || camOn) ? 100 * (0.55 * mx + 0.45 * avg) * (1 + 0.2 * Math.max(0, cnt - 1)) : 0;
+    S.idx += (clamp(tgt, 0, 100) - S.idx) * 0.25;
+    S.peak = Math.max(S.peak, S.idx);
+
+    if (magOn) track('mag', sE, 'Δ ' + S.magDev.toFixed(1) + ' µT dari latar', cnt);
+    if (vibOn) track('vib', sI, 'puncak ' + S.vibDom.toFixed(1) + ' Hz, pita 19 Hz ' + S.vibA19.toFixed(3) + ' m/s²', cnt);
+    if (sndOn) track('snd', sV, 'pita suara +' + S.voc.toFixed(0) + ' dB dari latar', cnt);
+    if (camOn) {
+      var hasL = S.camBoxes.some(function (b) { return b.type === 'CAHAYA'; });
+      track('cam', sC, (hasL ? 'titik cahaya muncul' : 'gerakan di depan lensa') + ', area ' + S.camArea.toFixed(0) + '%, ' + S.camObj + ' objek', cnt, camSnap);
+    }
+
+    if (magOn) { S.magH.push(S.magDev); if (S.magH.length > HN) S.magH.shift(); }
+
+    S.rowClock += DT;
+    if (S.rowClock >= 1) {
+      S.rowClock = 0;
+      S.rows.push([S.t.toFixed(1), S.magB == null ? '' : S.magB.toFixed(2), magOn ? S.magDev.toFixed(2) : '', vibOn ? S.vibDom.toFixed(1) : '', vibOn ? S.vibA19.toFixed(4) : '', S.dB == null ? '' : S.dB.toFixed(1), sndOn ? S.voc.toFixed(1) : '', camOn ? S.camArea.toFixed(1) : '', S.idx.toFixed(1)]);
+      if (S.rows.length > 7200) S.rows.shift();
+    }
+  }
+
+  /* display */
+  function chip(node, s, text) { node.setAttribute('data-s', s); node.textContent = text; }
+  function sensorChip(k, node, extra) {
+    var st = SENS[k].st;
+    if (st === 'idle') chip(node, 'off', 'SIAGA');
+    else if (st === 'wait') chip(node, 'warn', 'MENUNGGU');
+    else if (st === 'denied') chip(node, 'crit', 'IZIN DITOLAK');
+    else if (st === 'off') chip(node, 'off', 'TIDAK TERSEDIA');
+    else if (extra) chip(node, extra[0], extra[1]);
+    else chip(node, 'ok', 'AKTIF');
+  }
+  function why(k, node) {
+    var st = SENS[k].st;
+    if (st === 'off' || st === 'denied') { node.textContent = WHY[k][st]; node.hidden = false; } else node.hidden = true;
+  }
+  function render() {
+    var lv = levelOf(S.idx);
+    el.clock.textContent = fmt(S.running ? S.t : S.t);
+    el.dur.textContent = pad(Math.floor(S.t / 60)) + ':' + pad(Math.floor(S.t) % 60);
+    el.num.textContent = Math.round(S.idx);
+    el.arc.setAttribute('stroke-dasharray', S.idx.toFixed(1) + ' 100');
+    el.gauge.setAttribute('data-lvl', lv);
+    el.level.textContent = 'Level ' + lv + ' · ' + LEVELS[lv];
+    el.evN.textContent = S.evCount; el.peak.textContent = Math.round(S.peak);
+
+    /* EMF */
+    var mOn = SENS.mag.st === 'on';
+    el.emfV.textContent = (mOn && S.magB != null) ? S.magB.toFixed(1) : '—';
+    if (mOn && S.magBase == null) el.emfD.textContent = 'Mengkalibrasi latar…';
+    else el.emfD.textContent = (mOn ? 'Δ ' + S.magDev.toFixed(1) : 'Δ —') + ' µT dari latar';
+    var th = [1, 3, 6, 12, 25], cols = ['ok', 'ok', 'warn', 'warn', 'crit'];
+    for (var i = 0; i < 5; i++) { var on = mOn && S.magBase != null && S.magDev >= th[i]; el.segs[i].className = 'seg' + (on ? ' on' : ''); el.segs[i].setAttribute('data-c', cols[i]); }
+    var ex = null;
+    if (mOn) ex = S.magBase == null ? ['warn', 'KALIBRASI'] : S.magDev < 3 ? ['ok', 'NORMAL'] : S.magDev < 8 ? ['warn', 'WASPADA'] : ['crit', 'TINGGI'];
+    sensorChip('mag', el.emfChip, ex); sensorChip('mag', el.chMag); why('mag', el.emfWhy);
+
+    /* vibration */
+    var vOn = SENS.vib.st === 'on';
+    el.vibV.textContent = (vOn && S.spec.length) ? S.vibDom.toFixed(1) : '—';
+    el.vibA.textContent = 'amplitudo ' + ((vOn && S.spec.length) ? S.vibAmp.toFixed(3) : '—') + ' m/s²';
+    el.vibHint.textContent = 'Pita 17.5 sampai 20.5 Hz ditandai. Laju sampel: ' + (S.fs ? Math.round(S.fs) + ' Hz' : '—') + (S.vibCap ? '. Terlalu rendah untuk melihat 19 Hz.' : '.');
+    ex = null;
+    if (vOn) {
+      if (!S.spec.length) ex = ['warn', 'MENGUMPULKAN'];
+      else if (S.vibCap) ex = ['warn', 'LAJU RENDAH'];
+      else { var r = S.vibA19 / Math.max(S.vibFloor, 0.002); ex = (r > 8 && S.vibA19 > 0.03) ? ['crit', 'RESONANSI'] : (r > 4 && S.vibA19 > 0.012) ? ['warn', 'MENDEKATI'] : ['ok', 'LATAR']; }
+    }
+    sensorChip('vib', el.vibChip, ex); sensorChip('vib', el.chVib); why('vib', el.vibWhy);
+
+    /* sound */
+    var sOn = SENS.snd.st === 'on';
+    el.sndV.textContent = (sOn && S.dB != null) ? S.dB.toFixed(0) : '—';
+    el.sndD.textContent = 'pita suara ' + ((sOn && S.sndWarm > 30) ? '+' + S.voc.toFixed(0) : '—') + ' dB dari latar';
+    ex = null;
+    if (sOn) ex = S.sndWarm <= 30 ? ['warn', 'KALIBRASI'] : S.voc < 8 ? ['ok', 'DERAU'] : S.voc < 16 ? ['warn', 'POLA'] : ['crit', 'ANOMALI'];
+    sensorChip('snd', el.sndChip, ex); sensorChip('snd', el.chSnd); why('snd', el.sndWhy);
+
+    /* camera */
+    var cOn = SENS.cam.st === 'on';
+    el.camPh.hidden = cOn;
+    el.camV.textContent = (cOn && S.camWarm >= 20 && !S.camShake) ? S.camArea.toFixed(0) : '—';
+    el.camD.textContent = 'kecerahan ' + (cOn ? Math.round(S.camLum) : '—') + ' · ' + (cOn ? S.camObj : 0) + ' objek';
+    ex = null;
+    if (cOn) ex = S.camWarm < 20 ? ['warn', 'KALIBRASI'] : S.camShake ? ['warn', 'PONSEL BERGERAK'] : S.camS < 0.15 ? ['ok', 'TENANG'] : S.camS < 0.45 ? ['warn', 'GERAKAN'] : ['crit', 'ANOMALI'];
+    sensorChip('cam', el.camChip, ex); sensorChip('cam', el.chCam); why('cam', el.camWhy);
+
+    drawTrace(CV.emfCv, S.magH, 0, 20, COL.accent, 3);
+    drawVib();
+    drawCam();
+  }
+  function rafLoop() { render(); requestAnimationFrame(rafLoop); }
+
+  /* controls */
+  function anySensor() { return SENS.mag.st === 'on' || SENS.mag.st === 'wait' || SENS.vib.st === 'on' || SENS.vib.st === 'wait' || SENS.snd.st === 'on' || SENS.cam.st === 'on'; }
+  function resetData() {
+    S.t = 0; S.t0 = performance.now(); S.idx = 0; S.peak = 0; S.evCount = 0; S.magH = []; S.rows = []; S.rowClock = 0;
+    S.magBase = null; S.magSum = 0; S.magN = 0; S.magDev = 0; S.spec = []; S.vibDom = 0; S.vibAmp = 0; S.vibA19 = 0;
+    S.sndWarm = 0; S.voc = 0; binFloor = null;
+    S.camWarm = 0; S.camS = 0; S.camArea = 0; S.camObj = 0; S.camBoxes = []; S.camHeat.fill(0); camBg = null; clearGallery();
+    TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); VB = []; vLP = null;
+    clearSpec();
+  }
+  function requestWake() {
+    try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {}); } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', function () { if (S.running && document.visibilityState === 'visible') requestWake(); });
+
+  function start() {
+    el.toggle.disabled = true; el.toggle.textContent = 'Meminta izin…';
+    ['mag', 'vib', 'snd', 'cam'].forEach(function (k) { if (SUP[k]) SENS[k].st = 'idle'; });
+    resetData(); emptyLog('Pemindaian dimulai. Diamkan ponsel selama beberapa detik untuk kalibrasi latar.');
+    var pv = startVib(), pm = startMag(), ps = startSnd(), pc = startCam();
+    Promise.all([pv, pm, ps, pc]).then(function () {
+      el.toggle.disabled = false;
+      if (!anySensor()) {
+        el.toggle.textContent = 'Mulai pemindaian';
+        addLog('SISTEM', 'Tidak ada sensor yang bisa diaktifkan di perangkat ini. Lihat keterangan di tiap modul.', 'crit');
+        return;
+      }
+      S.running = true; S.t0 = performance.now();
+      el.led.setAttribute('data-on', '1'); el.state.textContent = 'MEMINDAI'; el.toggle.textContent = 'Hentikan';
+      el.calib.disabled = false; el.exp.disabled = false; el.camFlip.disabled = !SUP.cam;
+      var on = []; if (SENS.mag.st !== 'off' && SENS.mag.st !== 'denied') on.push('magnetometer'); if (SENS.vib.st !== 'off' && SENS.vib.st !== 'denied') on.push('akselerometer'); if (SENS.snd.st === 'on') on.push('mikrofon'); if (SENS.cam.st === 'on') on.push('kamera');
+      addLog('SISTEM', 'Sensor diminta: ' + on.join(', ') + '.', 'ok');
+      requestWake();
+      timer = setInterval(tick, DT * 1000);
+    });
+  }
+  function stop() {
+    S.running = false; clearInterval(timer); timer = null;
+    stopMag(); stopVib(); stopSnd(); stopCam();
+    try { if (wake) wake.release(); } catch (e) {} wake = null;
+    ['mag', 'vib', 'snd', 'cam'].forEach(function (k) { if (SUP[k]) SENS[k].st = 'idle'; });
+    el.led.setAttribute('data-on', '0'); el.state.textContent = 'SIAGA'; el.toggle.textContent = 'Mulai pemindaian';
+    el.calib.disabled = true; el.camFlip.disabled = true;
+    addLog('SISTEM', 'Pemindaian dihentikan.', 'ok');
+  }
+  el.toggle.addEventListener('click', function () { if (S.running) stop(); else start(); });
+  el.calib.addEventListener('click', function () {
+    S.magBase = null; S.magSum = 0; S.magN = 0; S.magDev = 0; S.magH = []; binFloor = null; S.sndWarm = 0; S.voc = 0; S.spec = []; VB = [];
+    camBg = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0);
+    TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); S.idx = 0; clearSpec();
+    addLog('SISTEM', 'Kalibrasi ulang. Latar magnet dan suara diukur ulang.', 'ok');
+  });
+  el.exp.addEventListener('click', function () {
+    var head = 't_detik,medan_uT,deviasi_uT,getaran_dominan_Hz,getaran_19Hz_ms2,mikrofon_dBFS,pita_suara_dB,kamera_area_persen,indeks';
+    var csv = head + '\n' + S.rows.map(function (r) { return r.join(','); }).join('\n') + '\n';
+    var blob = new Blob([csv], { type: 'text/csv' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+    var d = new Date();
+    a.href = url; a.download = 'ghost-detector-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+  el.camFlip.addEventListener('click', function () {
+    if (!S.running) return;
+    el.camFlip.disabled = true;
+    SENS.cam.facing = SENS.cam.facing === 'environment' ? 'user' : 'environment';
+    stopCam();
+    startCam().then(function () {
+      el.camFlip.disabled = false;
+      addLog('SISTEM', 'Kamera ' + (S.camMirror ? 'depan' : 'belakang') + ' dipakai. Latar visual dipelajari ulang.', 'ok');
+    });
+  });
+  el.sens.addEventListener('input', function () { el.sensV.textContent = el.sens.value + ' / 10'; });
+  var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(fitAll, 120); });
+
+  fitAll(); clearSpec();
+  emptyLog('Siap. Tekan "Mulai pemindaian" dan izinkan sensor.');
+  requestAnimationFrame(rafLoop);
+})();
+</script>
+</body>
+</html>
