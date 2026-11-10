@@ -9,6 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="Ghost Detector Pro: pemantau anomali berbasis sensor ponsel (magnetometer, akselerometer, mikrofon, kamera).">
 <title>Ghost Detector Pro</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23091012'/%3E%3Cpath d='M8 26V14a8 8 0 0 1 16 0v12l-4-3-4 3-4-3z' fill='%23ffb23e'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
 <style>
 /* Layout: rak instrumen. Strip judul, panel indeks anomali + kontrol, tiga modul sensor (EMF, getaran, suara), log, catatan teori. */
@@ -332,7 +333,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
   var S = {
     running: false, t: 0, t0: 0, idx: 0, peak: 0, evCount: 0,
     magB: null, magBase: null, magN: 0, magSum: 0, magDev: 0, magLast: 0, magH: [],
-    spec: [], fs: 0, vibDom: 0, vibAmp: 0, vibA19: 0, vibRms: 0, vibCap: false, vibLast: 0, vibClock: 0,
+    spec: [], fs: 0, vibDom: 0, vibAmp: 0, vibA19: 0, vibRms: 0, vibCap: false, vibLast: 0, vibClock: 0, vibFloor: 0, lastTick: 0, dt: DT,
     dB: null, voc: 0, sndLast: 0, sndWarm: 0,
     rows: [], rowClock: 0,
     camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false, night: false
@@ -497,7 +498,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
       S.magDev = Math.abs(S.magB - S.magBase);
       if (S.magDev < 1.5) S.magBase += 0.003 * (S.magB - S.magBase);
     }
-    if (SENS.mag.st === 'wait') setState('mag', 'on');
+    if (SENS.mag.st === 'wait' || SENS.mag.st === 'off') setState('mag', 'on');
   }
   function startMag() {
     if (!SUP.mag) { setState('mag', 'off'); return Promise.resolve(); }
@@ -523,7 +524,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     vLP = vLP == null ? m : vLP + 0.05 * (m - vLP);
     VB.push([t, m - vLP]); if (VB.length > 256) VB.shift();
     S.vibLast = t;
-    if (SENS.vib.st === 'wait') setState('vib', 'on');
+    if (SENS.vib.st === 'wait' || SENS.vib.st === 'off') setState('vib', 'on');
   }
   function startVib() {
     if (!SUP.vib) { setState('vib', 'off'); return Promise.resolve(); }
@@ -758,7 +759,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     c.width = w; c.height = h; x = c.getContext('2d');
     x.save(); if (S.night) x.filter = NIGHT_FILTER; if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
     x.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h); x.restore();
-    drawBoxes(x, w, h, S.camBoxes, 1, 1, 0.5);
+    drawBoxes(x, w, h, liveBoxes(), 1, 1, 0.5);
     x.filter = 'none'; drawMark(x, w, h, 1);
     try { return c.toDataURL('image/jpeg', 0.65); } catch (e) { return null; }
   }
@@ -810,7 +811,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     }
     if (s > tr.peak) { tr.peak = s; tr.desc = desc; if (snapFn && S.t - tr.snapT > 0.5) { tr.snap = snapFn(); tr.snapT = S.t; } }
     if (cnt >= 2) tr.multi = true;
-    tr.quiet = s < 0.15 ? tr.quiet + DT : 0;
+    tr.quiet = s < 0.15 ? tr.quiet + S.dt : 0;
     if (tr.quiet >= 1) {
       var dur = S.t - tr.t0 - tr.quiet, sev = tr.peak > 0.7 ? 'crit' : tr.peak > 0.45 ? 'warn' : 'ok';
       S.evCount++;
@@ -821,8 +822,10 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
   }
 
   function tick() {
-    S.t = (performance.now() - S.t0) / 1000;
     var now = performance.now(), sens = +el.sens.value, k = 0.5 + sens * 0.1;
+    S.t = (now - S.t0) / 1000;
+    /* setInterval dilambatkan browser saat tab tersembunyi, jadi pakai selisih waktu nyata */
+    S.dt = S.lastTick ? clamp((now - S.lastTick) / 1000, 0.02, 2) : DT; S.lastTick = now;
 
     /* watchdogs: sensor said yes but no data */
     if (SENS.mag.st === 'wait' && S.t > 2.5) setState('mag', 'off');
@@ -832,7 +835,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
 
     if (SENS.cam.st === 'on') camStep();
     if (SENS.snd.st === 'on' && SENS.snd.an) sndStep();
-    S.vibClock += DT;
+    S.vibClock += S.dt;
     if (SENS.vib.st === 'on' && S.vibClock >= 0.25) { S.vibClock = 0; vibSpec(); }
 
     var sE = 0, sI = 0, sV = 0, sC = 0, wsum = 0, wtot = 0;
@@ -862,7 +865,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
 
     if (magOn) { S.magH.push(S.magDev); if (S.magH.length > HN) S.magH.shift(); }
 
-    S.rowClock += DT;
+    S.rowClock += S.dt;
     if (S.rowClock >= 1) {
       S.rowClock = 0;
       S.rows.push([S.t.toFixed(1), S.magB == null ? '' : S.magB.toFixed(2), magOn ? S.magDev.toFixed(2) : '', vibOn ? S.vibDom.toFixed(1) : '', vibOn ? S.vibA19.toFixed(4) : '', S.dB == null ? '' : S.dB.toFixed(1), sndOn ? S.voc.toFixed(1) : '', camOn ? S.camArea.toFixed(1) : '', S.idx.toFixed(1)]);
@@ -887,7 +890,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
   }
   function render() {
     var lv = levelOf(S.idx);
-    el.clock.textContent = fmt(S.running ? S.t : S.t);
+    el.clock.textContent = fmt(S.t);
     el.dur.textContent = pad(Math.floor(S.t / 60)) + ':' + pad(Math.floor(S.t) % 60);
     el.num.textContent = Math.round(S.idx);
     el.arc.setAttribute('stroke-dasharray', S.idx.toFixed(1) + ' 100');
@@ -947,7 +950,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
   function resetData() {
     S.t = 0; S.t0 = performance.now(); S.idx = 0; S.peak = 0; S.evCount = 0; S.magH = []; S.rows = []; S.rowClock = 0;
     S.magBase = null; S.magSum = 0; S.magN = 0; S.magDev = 0; S.spec = []; S.vibDom = 0; S.vibAmp = 0; S.vibA19 = 0;
-    S.sndWarm = 0; S.voc = 0; binFloor = null;
+    S.sndWarm = 0; S.voc = 0; binFloor = null; S.vibFloor = 0; S.vibCap = false; S.fs = 0; S.lastTick = 0;
     S.camWarm = 0; S.camS = 0; S.camArea = 0; S.camObj = 0; S.camBoxes = []; S.camHeat.fill(0); camBg = null; clearGallery();
     TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); VB = []; vLP = null;
     clearSpec();
@@ -955,7 +958,16 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
   function requestWake() {
     try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {}); } catch (e) {}
   }
-  document.addEventListener('visibilitychange', function () { if (S.running && document.visibilityState === 'visible') requestWake(); });
+  document.addEventListener('visibilitychange', function () {
+    if (!S.running) return;
+    if (document.visibilityState === 'visible') {
+      requestWake();
+      camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0);
+      addLog('SISTEM', 'Halaman kembali aktif. Latar kamera dipelajari ulang.', 'ok');
+    } else {
+      addLog('SISTEM', 'Halaman tersembunyi. Browser dapat menjeda kamera dan sensor sampai halaman dibuka lagi.', 'warn');
+    }
+  });
 
   function start() {
     el.toggle.disabled = true; el.toggle.textContent = 'Meminta izin…';
@@ -1023,7 +1035,17 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     });
   });
   el.sens.addEventListener('input', function () { el.sensV.textContent = el.sens.value + ' / 10'; });
-  var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(fitAll, 120); });
+  var rz, lastAR = camAR();
+  window.addEventListener('resize', function () {
+    clearTimeout(rz);
+    rz = setTimeout(function () {
+      fitAll();
+      /* rotasi layar mengubah area potong kamera, jadi latar visual harus dipelajari ulang agar tidak terbaca gerakan */
+      var ar = camAR();
+      if (Math.abs(ar - lastAR) > 0.05 && SENS.cam.st === 'on') { camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0); }
+      lastAR = ar;
+    }, 120);
+  });
 
   fitAll(); clearSpec();
   emptyLog('Siap. Tekan "Mulai pemindaian" dan izinkan sensor.');
