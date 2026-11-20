@@ -164,6 +164,8 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 .evp-item { display: grid; gap: 4px; }
 .evp-item .cap { display: flex; justify-content: space-between; gap: 8px; font: 400 11px var(--f-mono); color: var(--dim); }
 .evp-item .cap a { color: var(--accent); padding: 4px 0; }
+.evp-item .acts { display: flex; align-items: center; gap: 12px; }
+.evp-item .cap button { min-height: 32px; padding: 2px 8px; font: 500 11px var(--f-mono); }
 .evp-item audio { width: 100%; height: 36px; }
 
 @media (prefers-reduced-motion: reduce) { .led[data-on="1"] { animation: none; } .g-fill { transition: none; } }
@@ -564,6 +566,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   function evpSync() { $('evpN').textContent = $('evpList').getElementsByClassName('evp-item').length + ' klip'; }
   function clearEvp() {
     var l = $('evpList'), items = l.getElementsByClassName('evp-item');
+    revStop();
     while (items.length) { var it = items[0]; if (it._url) URL.revokeObjectURL(it._url); l.removeChild(it); }
     if (!$('evpEmpty')) { var p = document.createElement('p'); p.className = 'gal-empty'; p.id = 'evpEmpty'; p.textContent = CAN_REC ? EVP_EMPTY : 'Perekaman tidak didukung di browser ini.'; l.appendChild(p); }
     evpSync();
@@ -576,13 +579,34 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var cap = document.createElement('div'); cap.className = 'cap';
     var tx = document.createElement('span'); tx.textContent = fmt(S.t) + ' · ' + dur.toFixed(1) + ' dtk · pita suara +' + pk.toFixed(0) + ' dB';
     var dl = document.createElement('a'); dl.href = url; dl.download = 'evp-' + fmt(S.t).replace(/:/g, '') + '.' + ext; dl.textContent = 'Simpan';
-    cap.appendChild(tx); cap.appendChild(dl);
+    var rv = document.createElement('button'); rv.type = 'button'; rv.textContent = 'Putar mundur';
+    rv.addEventListener('click', function () { evpReverse(blob, rv); });
+    var acts = document.createElement('span'); acts.className = 'acts'; acts.appendChild(rv); acts.appendChild(dl);
+    cap.appendChild(tx); cap.appendChild(acts);
     var au = document.createElement('audio'); au.controls = true; au.preload = 'metadata'; au.src = url;
     it.appendChild(cap); it.appendChild(au);
     l.insertBefore(it, l.firstChild);
     while (l.getElementsByClassName('evp-item').length > 8) { var last = l.getElementsByClassName('evp-item'); var old = last[last.length - 1]; if (old._url) URL.revokeObjectURL(old._url); l.removeChild(old); }
     evpSync();
     addLog('SUARA', 'Klip EVP tersimpan (' + dur.toFixed(1) + ' dtk). Putar ulang di modul suara.', 'ok');
+  }
+  var revSrc = null, revBtn = null;
+  function revStop() {
+    try { if (revSrc) { revSrc.onended = null; revSrc.stop(); } } catch (e) {}
+    revSrc = null; if (revBtn) { revBtn.textContent = 'Putar mundur'; revBtn = null; }
+  }
+  function evpReverse(blob, btn) {
+    if (revBtn === btn) { revStop(); return; }
+    revStop(); primeBeep(); var ac = ALERT.ac; if (!ac) return;
+    btn.disabled = true; btn.textContent = 'Memuat…';
+    blob.arrayBuffer().then(function (buf) {
+      return new Promise(function (res, rej) { var p = ac.decodeAudioData(buf, res, rej); if (p && p.catch) p.catch(rej); });
+    }).then(function (ab) {
+      for (var c = 0; c < ab.numberOfChannels; c++) ab.getChannelData(c).reverse();
+      var src = ac.createBufferSource(); src.buffer = ab; src.connect(ac.destination);
+      src.onended = function () { if (revSrc === src) revStop(); };
+      src.start(); revSrc = src; revBtn = btn; btn.disabled = false; btn.textContent = 'Berhenti';
+    }).catch(function () { btn.disabled = false; btn.textContent = 'Gagal diputar'; });
   }
   function evpStart() {
     if (EVP.rec || !EVP.on || !CAN_REC || !SENS.snd.stream) return;
