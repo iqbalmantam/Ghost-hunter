@@ -154,6 +154,18 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink
 .gal-empty { margin: 0; color: var(--dim); font-size: 13px; }
 img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: auto; border-radius: 3px; border: 1px solid var(--line); }
 
+canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto; margin: 0 auto; border-radius: 50%; background: radial-gradient(circle, #0d1f1a 0%, var(--inset) 100%); }
+.opts { display: flex; gap: 16px; flex-wrap: wrap; }
+.opt, .row label.opt { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 44px; font: 400 14px var(--f-body); letter-spacing: 0; text-transform: none; color: var(--fg); cursor: pointer; }
+.opt input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; flex: none; }
+.opt input:disabled + span { opacity: .5; }
+.evp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.evp { display: grid; gap: 8px; }
+.evp-item { display: grid; gap: 4px; }
+.evp-item .cap { display: flex; justify-content: space-between; gap: 8px; font: 400 11px var(--f-mono); color: var(--dim); }
+.evp-item .cap a { color: var(--accent); padding: 4px 0; }
+.evp-item audio { width: 100%; height: 36px; }
+
 @media (prefers-reduced-motion: reduce) { .led[data-on="1"] { animation: none; } .g-fill { transition: none; } }
 </style>
 </head>
@@ -205,6 +217,14 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
         <input type="range" id="sens" min="1" max="10" step="1" value="5">
         <p class="hint">Makin tinggi, makin kecil penyimpangan yang dianggap anomali.</p>
       </div>
+      <div class="row">
+        <span class="lbl">Peringatan</span>
+        <div class="opts">
+          <label class="opt"><input type="checkbox" id="optVib" checked><span>Getar</span></label>
+          <label class="opt"><input type="checkbox" id="optBeep"><span>Bunyi</span></label>
+        </div>
+        <p class="hint">Aktif saat indeks naik ke level 2 atau lebih. Bunyi bisa terekam mikrofon, jadi dimatikan secara bawaan.</p>
+      </div>
       <div class="btns">
         <button class="primary" id="toggle" type="button">Mulai pemindaian</button>
         <button id="calib" type="button" disabled>Kalibrasi ulang</button>
@@ -222,11 +242,17 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
         <p class="cam-ph" id="camPh">Kamera belum aktif. Tekan &quot;Mulai pemindaian&quot; dan izinkan kamera.</p>
       </div>
       <div class="read-row"><p class="read"><span id="camV">—</span><small>% area</small></p><span class="sub-read" id="camD">kecerahan — · 0 objek</span></div>
-      <div class="cam-tools"><button id="camNight" type="button" aria-pressed="false">Mode malam: mati</button><button id="camFlip" type="button" disabled>Balik kamera</button></div>
+      <div class="cam-tools"><button id="camNight" type="button" aria-pressed="false">Mode malam: mati</button><button id="camSls" type="button" aria-pressed="false">Gaya SLS: mati</button><button id="camFlip" type="button" disabled>Balik kamera</button><button id="camTorch" type="button" aria-pressed="false" disabled>Senter: mati</button></div>
+      <p class="hint" id="slsHint" hidden>Gaya SLS hanya tampilan. Ponsel tidak punya sensor kedalaman inframerah, jadi titik-titik adalah hiasan dan kerangka digambar dari kotak gerak yang berbentuk tinggi, bukan pelacakan sendi sungguhan. Benda tegak seperti tirai atau kursi juga bisa tergambar sebagai sosok.</p>
       <p class="why" id="camWhy" hidden></p>
       <div class="lbl">Tangkapan anomali</div>
       <div class="gal" id="gal" aria-live="polite"><p class="gal-empty" id="galEmpty">Belum ada tangkapan. Gambar otomatis tersimpan saat kamera mendeteksi anomali.</p></div>
       <p class="hint">Kamera membandingkan tiap frame dengan latar yang dipelajari. Kotak kuning atau merah menandai area yang berubah, titik terang di ruang gelap ditandai &quot;CAHAYA&quot;. Debu atau serangga dekat lensa, bayangan, dan perubahan eksposur otomatis sering terbaca sebagai anomali. Gambar tidak dikirim ke mana pun.</p>
+    </article>
+    <article class="panel mod wide">
+      <div class="mod-head"><span class="lbl">Radar anomali</span><span class="chip" id="radChip" data-s="off">SIAGA</span></div>
+      <canvas class="radar" id="radarCv" aria-label="Radar: titik anomali dari kamera dan cincin kekuatan medan magnet, suara, dan getaran"></canvas>
+      <p class="hint">Atas radar adalah arah depan kamera. Titik berasal dari area gerak atau cahaya yang dilihat kamera: makin ke tepi berarti makin ke samping, makin ke tengah makin jauh. Cincin kuning = selisih medan magnet, cincin hijau putus-putus = energi pita suara, cincin merah putus halus = getaran 19 Hz. Ini tampilan dari data sensor, bukan pengukuran jarak atau arah hantu.</p>
     </article>
     <article class="panel mod">
       <div class="mod-head"><span class="lbl">Medan magnet (EMF)</span><span class="chip" id="emfChip" data-s="off">SIAGA</span></div>
@@ -262,6 +288,8 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
         <span class="ax" style="bottom:2px">0</span>
       </div>
       <p class="why" id="sndWhy" hidden></p>
+      <div class="evp-head"><label class="opt"><input type="checkbox" id="optEvp" checked><span>Rekam EVP otomatis</span></label><span class="sub-read" id="evpN">0 klip</span></div>
+      <div class="evp" id="evpList" aria-live="polite"><p class="gal-empty" id="evpEmpty">Belum ada klip. Rekaman otomatis dimulai saat energi di pita suara naik dan berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.</p></div>
       <p class="hint">Warna menunjukkan energi di atas latar tiap frekuensi. Mikrofon ponsel tidak merekam infrasonik, dan dBFS bukan desibel tekanan suara.</p>
     </article>
   </section>
@@ -296,6 +324,10 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     <details>
       <summary>Cara indeks dihitung</summary>
       <p>Tiap sensor aktif (magnetometer, akselerometer, mikrofon, kamera) diberi skor 0 sampai 1. Indeks memadukan skor tertinggi (55%) dengan rata-rata berbobot (45%), lalu diperbesar bila beberapa sensor menyimpang bersamaan. Level: 0 tenang, 1 lemah, 2 terdeteksi, 3 kuat, 4 sangat kuat, 5 ekstrem. Sensitivitas menggeser ambang skor.</p>
+    </details>
+    <details>
+      <summary>Radar, EVP, dan gaya SLS</summary>
+      <p>Radar menggambar ulang data sensor: titik dari kotak gerak kamera dan cincin dari skor EMF, suara, dan getaran. Rekaman EVP otomatis menyimpan klip pendek dari mikrofon saat energi pita suara naik, supaya bisa didengar ulang dengan telinga, bukan dengan angka. Kamera SLS asli memakai proyektor inframerah dan sensor kedalaman, lalu perangkat lunak menggambar kerangka pada sosok yang dikira manusia. Penelitian skeptis menunjukkan kerangka itu muncul juga pada kursi, tanaman, dan tirai, dan &quot;menari&quot; saat derau tinggi. Gaya SLS di sini hanya meniru tampilannya dari gerakan yang terlihat kamera biasa.</p>
     </details>
   </section>
 
@@ -336,10 +368,16 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     spec: [], fs: 0, vibDom: 0, vibAmp: 0, vibA19: 0, vibRms: 0, vibCap: false, vibLast: 0, vibClock: 0, vibFloor: 0, lastTick: 0, dt: DT,
     dB: null, voc: 0, sndLast: 0, sndWarm: 0,
     rows: [], rowClock: 0,
-    camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false, night: false
+    camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false, night: false, sls: false, sE: 0, sI: 0, sV: 0
   };
   var SENS = { mag: { st: 'idle', obj: null }, vib: { st: 'idle' }, snd: { st: 'idle', stream: null, ac: null, an: null }, cam: { st: 'idle', stream: null, facing: 'environment' } };
   var timer = null, wake = null;
+  var ALERT = { beep: false, vib: true, ac: null, last: 0, lv: 0 };
+  var EVP = { on: true, rec: null, chunks: [], t0: 0, quiet: 0, peak: 0 };
+  var CAN_REC = typeof window.MediaRecorder !== 'undefined';
+  var EVP_EMPTY = 'Belum ada klip. Rekaman otomatis dimulai saat energi di pita suara naik dan berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.';
+  var BL = [], blT = 0;
+  var btnSls = $('camSls'), btnTorch = $('camTorch'), torchOn = false;
 
   var el = {
     led: $('led'), state: $('stateText'), clock: $('clock'), gauge: $('gauge'), arc: $('gArc'), num: $('gNum'),
@@ -375,7 +413,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
 
   /* canvases */
   var CV = {}, DPR = 1;
-  ['emfCv', 'vibCv', 'specCv', 'camOv'].forEach(function (id) { CV[id] = { el: $(id), ctx: $(id).getContext('2d'), w: 0, h: 0 }; });
+  ['emfCv', 'vibCv', 'specCv', 'camOv', 'radarCv'].forEach(function (id) { CV[id] = { el: $(id), ctx: $(id).getContext('2d'), w: 0, h: 0 }; });
   function fit(c) {
     var r = c.el.getBoundingClientRect();
     var w = Math.max(10, Math.round(r.width * DPR)), h = Math.max(10, Math.round(r.height * DPR));
@@ -441,6 +479,175 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
       x.fillRect(i * bw + 0.5 * DPR, h - 12 * DPR - bh, Math.max(1, bw - 1 * DPR), bh);
     }
     x.globalAlpha = 1;
+  }
+
+  /* radar */
+  var RFOV = 0.61;
+  function addBlips() {
+    var now = performance.now();
+    S.camBoxes.forEach(function (b) {
+      var cxn = (b.x0 + b.x1) / 2, cyn = (b.y0 + b.y1) / 2, hit = null, i;
+      if (S.camMirror) cxn = 1 - cxn;
+      var ang = -Math.PI / 2 + (cxn - 0.5) * 2 * RFOV, rr = clamp(0.2 + 0.75 * (1 - cyn), 0.15, 0.95);
+      for (i = 0; i < BL.length; i++) if (Math.abs(BL[i].a - ang) < 0.08 && Math.abs(BL[i].r - rr) < 0.1 && now - BL[i].t < 800) { hit = BL[i]; break; }
+      if (hit) { hit.t = now; hit.a = ang; hit.r = rr; }
+      else BL.push({ a: ang, r: rr, t: now, s: clamp(b.size / 20, 0, 1), c: b.sev === 'crit' ? COL.crit : COL.warn });
+    });
+    while (BL.length > 40) BL.shift();
+  }
+  function ring(x, cx, cy, r, col, lw, dash, alpha) {
+    x.save(); x.strokeStyle = col; x.lineWidth = lw; x.globalAlpha = alpha; x.setLineDash(dash || []);
+    x.beginPath(); x.arc(cx, cy, r, 0, 6.2832); x.stroke(); x.restore();
+  }
+  function drawRadar() {
+    var c = CV.radarCv, x = c.ctx, w = c.w, h = c.h, cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 4 * DPR, now = performance.now(), i;
+    x.clearRect(0, 0, w, h);
+    x.lineWidth = 1 * DPR; x.strokeStyle = COL.line;
+    for (i = 1; i <= 4; i++) { x.beginPath(); x.arc(cx, cy, R * i / 4, 0, 6.2832); x.stroke(); }
+    x.beginPath(); x.moveTo(cx - R, cy); x.lineTo(cx + R, cy); x.moveTo(cx, cy - R); x.lineTo(cx, cy + R); x.stroke();
+    x.save(); x.globalAlpha = 0.08; x.fillStyle = COL.ok; x.beginPath(); x.moveTo(cx, cy);
+    x.arc(cx, cy, R, -Math.PI / 2 - RFOV, -Math.PI / 2 + RFOV); x.closePath(); x.fill(); x.restore();
+    x.font = '500 ' + Math.round(10 * DPR) + 'px "IBM Plex Mono", ui-monospace, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = COL.dim;
+    x.fillText('DEPAN', cx, cy - R + 14 * DPR);
+    if (!S.running) { x.fillText('SIAGA', cx, cy + 22 * DPR); return; }
+    if (!RM) {
+      var a = (now / 3500 % 1) * 6.2832;
+      for (i = 0; i < 24; i++) {
+        x.globalAlpha = 0.16 * (1 - i / 24); x.fillStyle = COL.ok;
+        x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R, a - (i + 1) * 0.045, a - i * 0.045); x.closePath(); x.fill();
+      }
+      x.globalAlpha = 0.6; x.strokeStyle = COL.ok; x.lineWidth = 1.5 * DPR;
+      x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); x.stroke(); x.globalAlpha = 1;
+    }
+    if (S.sE > 0.02) ring(x, cx, cy, R * (0.12 + 0.88 * S.sE), COL.accent, 2 * DPR, null, 0.85);
+    if (S.sV > 0.02) ring(x, cx, cy, R * (0.12 + 0.88 * S.sV), COL.ok, 2 * DPR, [6 * DPR, 4 * DPR], 0.85);
+    if (S.sI > 0.02) ring(x, cx, cy, R * (0.12 + 0.88 * S.sI), COL.crit, 1.5 * DPR, [2 * DPR, 3 * DPR], 0.85);
+    for (i = BL.length - 1; i >= 0; i--) {
+      var b = BL[i], age = (now - b.t) / 1000;
+      if (age > 5) { BL.splice(i, 1); continue; }
+      var bx = cx + Math.cos(b.a) * b.r * R, by = cy + Math.sin(b.a) * b.r * R, al = 1 - age / 5;
+      x.globalAlpha = al; x.fillStyle = b.c;
+      x.beginPath(); x.arc(bx, by, (3 + b.s * 4) * DPR, 0, 6.2832); x.fill();
+      x.globalAlpha = al * 0.5; x.strokeStyle = b.c; x.lineWidth = 1 * DPR;
+      x.beginPath(); x.arc(bx, by, (5 + b.s * 4 + age * 3) * DPR, 0, 6.2832); x.stroke();
+    }
+    x.globalAlpha = 1; x.fillStyle = COL.fg || '#dbe6e3';
+    x.beginPath(); x.arc(cx, cy, 2.5 * DPR, 0, 6.2832); x.fill();
+  }
+
+  /* peringatan: getar dan bunyi */
+  function primeBeep() {
+    try {
+      if (!ALERT.ac) ALERT.ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ALERT.ac.state === 'suspended') ALERT.ac.resume();
+    } catch (e) {}
+  }
+  function beep(lv) {
+    try {
+      primeBeep(); var ac = ALERT.ac; if (!ac) return;
+      var n = lv >= 4 ? 3 : lv >= 3 ? 2 : 1, i;
+      for (i = 0; i < n; i++) {
+        var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + i * 0.2;
+        o.type = 'sine'; o.frequency.value = 660 + lv * 110;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.16);
+      }
+    } catch (e) {}
+  }
+  function fireAlert(lv) {
+    var now = performance.now(); if (now - ALERT.last < 2000) return; ALERT.last = now;
+    if (ALERT.vib && navigator.vibrate) { try { navigator.vibrate(lv >= 4 ? [120, 60, 120, 60, 120] : lv >= 3 ? [120, 60, 120] : [90]); } catch (e) {} }
+    if (ALERT.beep) beep(lv);
+  }
+
+  /* EVP: rekam klip pendek saat energi pita suara naik */
+  function evpSync() { $('evpN').textContent = $('evpList').getElementsByClassName('evp-item').length + ' klip'; }
+  function clearEvp() {
+    var l = $('evpList'), items = l.getElementsByClassName('evp-item');
+    while (items.length) { var it = items[0]; if (it._url) URL.revokeObjectURL(it._url); l.removeChild(it); }
+    if (!$('evpEmpty')) { var p = document.createElement('p'); p.className = 'gal-empty'; p.id = 'evpEmpty'; p.textContent = CAN_REC ? EVP_EMPTY : 'Perekaman tidak didukung di browser ini.'; l.appendChild(p); }
+    evpSync();
+  }
+  function evpAdd(blob, dur, pk) {
+    var url = URL.createObjectURL(blob), l = $('evpList'), em = $('evpEmpty');
+    if (em && em.parentNode) em.parentNode.removeChild(em);
+    var ext = /ogg/.test(blob.type) ? 'ogg' : /mp4|aac/.test(blob.type) ? 'm4a' : 'webm';
+    var it = document.createElement('div'); it.className = 'evp-item'; it._url = url;
+    var cap = document.createElement('div'); cap.className = 'cap';
+    var tx = document.createElement('span'); tx.textContent = fmt(S.t) + ' · ' + dur.toFixed(1) + ' dtk · pita suara +' + pk.toFixed(0) + ' dB';
+    var dl = document.createElement('a'); dl.href = url; dl.download = 'evp-' + fmt(S.t).replace(/:/g, '') + '.' + ext; dl.textContent = 'Simpan';
+    cap.appendChild(tx); cap.appendChild(dl);
+    var au = document.createElement('audio'); au.controls = true; au.preload = 'metadata'; au.src = url;
+    it.appendChild(cap); it.appendChild(au);
+    l.insertBefore(it, l.firstChild);
+    while (l.getElementsByClassName('evp-item').length > 8) { var last = l.getElementsByClassName('evp-item'); var old = last[last.length - 1]; if (old._url) URL.revokeObjectURL(old._url); l.removeChild(old); }
+    evpSync();
+    addLog('SUARA', 'Klip EVP tersimpan (' + dur.toFixed(1) + ' dtk). Putar ulang di modul suara.', 'ok');
+  }
+  function evpStart() {
+    if (EVP.rec || !EVP.on || !CAN_REC || !SENS.snd.stream) return;
+    var r;
+    try { r = new MediaRecorder(SENS.snd.stream); } catch (e) { CAN_REC = false; return; }
+    EVP.chunks = []; EVP.t0 = performance.now(); EVP.quiet = 0; EVP.peak = 0; EVP.rec = r;
+    r.ondataavailable = function (e) { if (e.data && e.data.size) EVP.chunks.push(e.data); };
+    r.onstop = function () {
+      var dur = (performance.now() - EVP.t0) / 1000, chunks = EVP.chunks, pk = EVP.peak, type = r.mimeType || 'audio/webm';
+      EVP.rec = null; EVP.chunks = [];
+      if (chunks.length && dur >= 1) evpAdd(new Blob(chunks, { type: type }), dur, pk);
+    };
+    try { r.start(); } catch (e) { EVP.rec = null; }
+  }
+  function evpStop() { try { if (EVP.rec && EVP.rec.state !== 'inactive') EVP.rec.stop(); } catch (e) { EVP.rec = null; } }
+
+  /* gaya SLS (tampilan saja) dan senter */
+  var slsPat = null, slsDpr = 0;
+  function camFilter() {
+    var f = [];
+    if (S.sls) f.push('grayscale(1) contrast(1.35) brightness(0.8)');
+    if (S.night) f.push(NIGHT_FILTER);
+    return f.join(' ');
+  }
+  function drawGrid(x, w, h) {
+    if (!slsPat || slsDpr !== DPR) {
+      var g = Math.max(8, Math.round(12 * DPR)), pc = document.createElement('canvas'), p, d = Math.max(1, Math.round(1.4 * DPR));
+      pc.width = g; pc.height = g; p = pc.getContext('2d'); p.fillStyle = COL.ok; p.fillRect(Math.floor(g / 2), Math.floor(g / 2), d, d);
+      slsPat = x.createPattern(pc, 'repeat'); slsDpr = DPR;
+    }
+    x.save(); x.globalAlpha = 0.45; x.fillStyle = slsPat; x.fillRect(0, 0, w, h); x.restore();
+  }
+  function drawSkel(x, w, h, boxes, sc, alpha) {
+    x.save(); x.strokeStyle = COL.ok; x.fillStyle = COL.ok; x.lineWidth = 2 * sc; x.lineCap = 'round'; x.globalAlpha = alpha;
+    boxes.forEach(function (b) {
+      if (b.type !== 'GERAK' || b.size < 6) return;
+      var bx0 = S.camMirror ? 1 - b.x1 : b.x0, bx1 = S.camMirror ? 1 - b.x0 : b.x1;
+      var a = bx0 * w, e = bx1 * w, c = b.y0 * h, f = b.y1 * h, bw = e - a, bh = f - c;
+      if (bh < bw * 1.3) return;
+      var mx = (a + e) / 2, hr = Math.max(2 * sc, bh * 0.06), sh = Math.min(bw * 0.38, bh * 0.14);
+      var yH = c + bh * 0.07, yN = c + bh * 0.15, yS = c + bh * 0.2, yE = c + bh * 0.38, yW = c + bh * 0.56, yK = c + bh * 0.78;
+      x.beginPath(); x.arc(mx, yH, hr, 0, 6.2832); x.stroke();
+      x.beginPath();
+      x.moveTo(mx, yH + hr); x.lineTo(mx, yW);
+      x.moveTo(mx - sh, yS); x.lineTo(mx + sh, yS);
+      x.moveTo(mx - sh, yS); x.lineTo(mx - sh * 1.1, yE); x.lineTo(mx - sh * 0.9, yW);
+      x.moveTo(mx + sh, yS); x.lineTo(mx + sh * 1.1, yE); x.lineTo(mx + sh * 0.9, yW);
+      x.moveTo(mx, yW); x.lineTo(mx - sh * 0.5, yK); x.lineTo(mx - sh * 0.5, f);
+      x.moveTo(mx, yW); x.lineTo(mx + sh * 0.5, yK); x.lineTo(mx + sh * 0.5, f);
+      x.stroke();
+      [[mx, yN], [mx - sh, yS], [mx + sh, yS], [mx - sh * 1.1, yE], [mx + sh * 1.1, yE], [mx, yW], [mx - sh * 0.5, yK], [mx + sh * 0.5, yK]].forEach(function (p) {
+        x.beginPath(); x.arc(p[0], p[1], 2.2 * sc, 0, 6.2832); x.fill();
+      });
+      x.font = '500 ' + Math.round(9 * sc) + 'px "IBM Plex Mono", ui-monospace, monospace'; x.textAlign = 'center'; x.textBaseline = 'bottom';
+      x.fillText('BENTUK ± MANUSIA', mx, Math.max(10 * sc, c - 2 * sc));
+    });
+    x.restore();
+  }
+  function torchOff() {
+    torchOn = false; btnTorch.disabled = true; btnTorch.setAttribute('aria-pressed', 'false'); btnTorch.textContent = 'Senter: mati';
+  }
+  function torchInit() {
+    var tr = SENS.cam.stream && SENS.cam.stream.getVideoTracks()[0], ok = false;
+    try { ok = !!(tr && tr.getCapabilities && tr.getCapabilities().torch); } catch (e) {}
+    torchOff(); btnTorch.disabled = !ok;
   }
 
   /* log */
@@ -588,6 +795,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     });
   }
   function stopSnd() {
+    evpStop();
     try { if (SENS.snd.stream) SENS.snd.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
     try { if (SENS.snd.ac) SENS.snd.ac.close(); } catch (e) {}
     SENS.snd.stream = null; SENS.snd.ac = null; SENS.snd.an = null;
@@ -645,7 +853,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
       vid.className = S.camMirror ? 'mirror' : '';
       vid.muted = true; vid.setAttribute('playsinline', ''); vid.srcObject = stream;
       if (tr) tr.addEventListener('ended', function () { setState('cam', 'off'); });
-      return vid.play().catch(function () {}).then(function () { camBg = null; S.camWarm = 0; S.camS = 0; setState('cam', 'on'); });
+      return vid.play().catch(function () {}).then(function () { camBg = null; S.camWarm = 0; S.camS = 0; setState('cam', 'on'); torchInit(); });
     }).catch(function (err) {
       setState('cam', err && (err.name === 'NotAllowedError' || err.name === 'SecurityError') ? 'denied' : 'off');
     });
@@ -654,6 +862,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     try { if (SENS.cam.stream) SENS.cam.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
     SENS.cam.stream = null; camBg = null; camPrev = null;
     try { $('camVid').srcObject = null; } catch (e) {}
+    torchOff();
     S.camBoxes = []; S.camHeat.fill(0);
   }
 
@@ -757,9 +966,10 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     var v = $('camVid'); if (!v.videoWidth) return null;
     var ar = camAR(), w = 240, h = Math.round(w / ar), c = document.createElement('canvas'), x, r = cropRect(v, ar);
     c.width = w; c.height = h; x = c.getContext('2d');
-    x.save(); if (S.night) x.filter = NIGHT_FILTER; if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
+    x.save(); var cf = camFilter(); if (cf) x.filter = cf; if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
     x.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h); x.restore();
     drawBoxes(x, w, h, liveBoxes(), 1, 1, 0.5);
+    if (S.sls) drawSkel(x, w, h, liveBoxes(), 1, 1);
     x.filter = 'none'; drawMark(x, w, h, 1);
     try { return c.toDataURL('image/jpeg', 0.65); } catch (e) { return null; }
   }
@@ -779,6 +989,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     var c = CV.camOv, x = c.ctx, w = c.w, h = c.h, now = performance.now(), i;
     x.clearRect(0, 0, w, h);
     if (SENS.cam.st !== 'on') return;
+    if (S.sls) drawGrid(x, w, h);
     drawMark(x, w, h, DPR);
     var cw = w / GX, ch = h / GY, hot = S.camS > 0.45 ? COL.crit : COL.warn;
     for (i = 0; i < GN; i++) {
@@ -788,7 +999,10 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     }
     x.globalAlpha = 1;
     var age = now - S.camBoxT;
-    if (S.camBoxes.length && age < 700) drawBoxes(x, w, h, S.camBoxes, DPR, 1 - age / 700, RM ? 0.5 : 0.6 + 0.6 * Math.sin(now / 120));
+    if (S.camBoxes.length && age < 700) {
+      drawBoxes(x, w, h, S.camBoxes, DPR, 1 - age / 700, RM ? 0.5 : 0.6 + 0.6 * Math.sin(now / 120));
+      if (S.sls) drawSkel(x, w, h, S.camBoxes, DPR, 1 - age / 700);
+    }
     if (!RM && S.camWarm >= 20) { x.globalAlpha = 0.1; x.fillStyle = COL.ok; x.fillRect(0, (now / 18) % h, w, 2 * DPR); x.globalAlpha = 1; }
     if (S.camS > 0.35 && !S.camShake) {
       var pu = RM ? 1 : 0.5 + 0.5 * Math.sin(now / 110), ac = S.camS > 0.7 ? COL.crit : COL.warn;
@@ -834,6 +1048,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     if (SENS.vib.st === 'on' && now - S.vibLast > 3000) setState('vib', 'off');
 
     if (SENS.cam.st === 'on') camStep();
+    if (S.camBoxT !== blT && S.camBoxes.length) { blT = S.camBoxT; addBlips(); }
     if (SENS.snd.st === 'on' && SENS.snd.an) sndStep();
     S.vibClock += S.dt;
     if (SENS.vib.st === 'on' && S.vibClock >= 0.25) { S.vibClock = 0; vibSpec(); }
@@ -854,6 +1069,17 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     var tgt = (magOn || vibOn || sndOn || camOn) ? 100 * (0.55 * mx + 0.45 * avg) * (1 + 0.2 * Math.max(0, cnt - 1)) : 0;
     S.idx += (clamp(tgt, 0, 100) - S.idx) * 0.25;
     S.peak = Math.max(S.peak, S.idx);
+    S.sE = sE; S.sI = sI; S.sV = sV;
+    var lvNow = levelOf(S.idx);
+    if (lvNow > ALERT.lv && lvNow >= 2) fireAlert(lvNow);
+    ALERT.lv = lvNow;
+    if (EVP.on && SENS.snd.st === 'on') {
+      if (EVP.rec) {
+        EVP.peak = Math.max(EVP.peak, S.voc);
+        EVP.quiet = sV < 0.15 ? EVP.quiet + S.dt : 0;
+        if (EVP.quiet >= 1 || now - EVP.t0 > 15000) evpStop();
+      } else if (sndOn && sV > 0.35) evpStart();
+    }
 
     if (magOn) track('mag', sE, 'Δ ' + S.magDev.toFixed(1) + ' µT dari latar', cnt);
     if (vibOn) track('vib', sI, 'puncak ' + S.vibDom.toFixed(1) + ' Hz, pita 19 Hz ' + S.vibA19.toFixed(3) + ' m/s²', cnt);
@@ -942,6 +1168,9 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     drawTrace(CV.emfCv, S.magH, 0, 20, COL.accent, 3);
     drawVib();
     drawCam();
+    drawRadar();
+    var rc = $('radChip');
+    if (!S.running) chip(rc, 'off', 'SIAGA'); else if (BL.length) chip(rc, 'warn', 'SINYAL ' + BL.length); else chip(rc, 'ok', 'BERSIH');
   }
   function rafLoop() { render(); requestAnimationFrame(rafLoop); }
 
@@ -953,6 +1182,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     S.sndWarm = 0; S.voc = 0; binFloor = null; S.vibFloor = 0; S.vibCap = false; S.fs = 0; S.lastTick = 0;
     S.camWarm = 0; S.camS = 0; S.camArea = 0; S.camObj = 0; S.camBoxes = []; S.camHeat.fill(0); camBg = null; clearGallery();
     TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); VB = []; vLP = null;
+    clearEvp(); BL = []; ALERT.lv = 0; S.sE = 0; S.sI = 0; S.sV = 0;
     clearSpec();
   }
   function requestWake() {
@@ -970,6 +1200,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
   });
 
   function start() {
+    if (ALERT.beep) primeBeep();
     el.toggle.disabled = true; el.toggle.textContent = 'Meminta izin…';
     ['mag', 'vib', 'snd', 'cam'].forEach(function (k) { if (SUP[k]) SENS[k].st = 'idle'; });
     resetData(); emptyLog('Pemindaian dimulai. Diamkan ponsel selama beberapa detik untuk kalibrasi latar.');
@@ -1019,7 +1250,7 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
     S.night = !S.night;
     el.camNight.setAttribute('aria-pressed', S.night ? 'true' : 'false');
     el.camNight.textContent = 'Mode malam: ' + (S.night ? 'aktif' : 'mati');
-    $('camVid').style.filter = S.night ? NIGHT_FILTER : '';
+    $('camVid').style.filter = camFilter();
     camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0);
     TR.cam = mkTr();
     if (S.running) addLog('SISTEM', 'Mode malam kamera ' + (S.night ? 'aktif' : 'mati') + '. Latar visual dipelajari ulang.', 'ok');
@@ -1045,6 +1276,35 @@ img.thumb { display: block; margin-top: 6px; width: min(100%, 180px); height: au
       if (Math.abs(ar - lastAR) > 0.05 && SENS.cam.st === 'on') { camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0); }
       lastAR = ar;
     }, 120);
+  });
+
+  /* pengaturan peringatan, EVP, gaya SLS, senter */
+  function loadOpt(k, d) { try { var v = localStorage.getItem('gdp.' + k); return v == null ? d : v === '1'; } catch (e) { return d; } }
+  function saveOpt(k, v) { try { localStorage.setItem('gdp.' + k, v ? '1' : '0'); } catch (e) {} }
+  var optVib = $('optVib'), optBeep = $('optBeep'), optEvp = $('optEvp');
+  ALERT.vib = !!navigator.vibrate && loadOpt('vib', true); ALERT.beep = loadOpt('beep', false); EVP.on = CAN_REC && loadOpt('evp', true);
+  optVib.checked = ALERT.vib; optBeep.checked = ALERT.beep; optEvp.checked = EVP.on;
+  if (!navigator.vibrate) { optVib.disabled = true; optVib.title = 'Browser ini tidak mendukung getar'; }
+  if (!CAN_REC) { optEvp.disabled = true; optEvp.title = 'Browser ini tidak mendukung perekaman'; $('evpEmpty').textContent = 'Perekaman tidak didukung di browser ini.'; }
+  optVib.addEventListener('change', function () { ALERT.vib = optVib.checked; saveOpt('vib', ALERT.vib); if (ALERT.vib && navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} } });
+  optBeep.addEventListener('change', function () { ALERT.beep = optBeep.checked; saveOpt('beep', ALERT.beep); if (ALERT.beep) { primeBeep(); beep(1); } });
+  optEvp.addEventListener('change', function () { EVP.on = optEvp.checked; saveOpt('evp', EVP.on); if (!EVP.on) evpStop(); });
+  btnSls.addEventListener('click', function () {
+    S.sls = !S.sls;
+    btnSls.setAttribute('aria-pressed', S.sls ? 'true' : 'false');
+    btnSls.textContent = 'Gaya SLS: ' + (S.sls ? 'aktif' : 'mati');
+    $('slsHint').hidden = !S.sls;
+    $('camVid').style.filter = camFilter();
+  });
+  btnTorch.addEventListener('click', function () {
+    var tr = SENS.cam.stream && SENS.cam.stream.getVideoTracks()[0]; if (!tr) return;
+    btnTorch.disabled = true;
+    tr.applyConstraints({ advanced: [{ torch: !torchOn }] }).then(function () {
+      torchOn = !torchOn; btnTorch.disabled = false;
+      btnTorch.setAttribute('aria-pressed', torchOn ? 'true' : 'false'); btnTorch.textContent = 'Senter: ' + (torchOn ? 'aktif' : 'mati');
+      camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0); TR.cam = mkTr();
+      if (S.running) addLog('SISTEM', 'Senter ' + (torchOn ? 'menyala' : 'mati') + '. Latar visual dipelajari ulang.', 'ok');
+    }).catch(function () { torchOff(); });
   });
 
   fitAll(); clearSpec();
