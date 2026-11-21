@@ -7,7 +7,7 @@ Pemantau anomali berbasis sensor ponsel dalam satu file `index.html`. Tidak ada 
 - **Indeks anomali** 0 sampai 100 dari magnetometer, akselerometer, mikrofon, dan kamera, lengkap dengan level dan log kejadian.
 - **Radar anomali**: sapuan dengan titik dari gerakan atau cahaya yang dilihat kamera, plus cincin EMF, suara, dan getaran 19 Hz.
 - **Kamera**: deteksi gerak dan titik cahaya, mode malam, balik kamera, senter, tangkapan otomatis, dan gaya SLS (tampilan saja, bukan sensor kedalaman).
-- **Rekam EVP otomatis**: klip pendek saat energi pita suara naik, bisa diputar ulang, diputar mundur, dan disimpan. Klip tidak diunggah.
+- **Rekam EVP otomatis**: klip pendek saat energi frekuensi rendah (20 sampai 100 Hz) naik. Suara manusia (300 sampai 3400 Hz) diabaikan: bila terdeteksi, skor suara dan perekaman ditahan, bisa diputar ulang, diputar mundur, dan disimpan. Klip tidak diunggah.
 - **Pelacak objek**: tiap area yang berubah diberi ID, jejak, kecepatan, dan arah (panah), lalu diklasifikasi (melintas, mendekat, menjauh, diam, berkedip). Objek besar, cepat, dan buram di dekat lensa diberi label `DEKAT?` dan skornya diturunkan karena biasanya serangga atau debu.
 - **Resolusi adaptif**: kandidat diukur ulang pada 160×120 untuk kotak yang lebih rapat dan ukuran ketajaman tepi.
 - **Kunci eksposur dan white balance** (kamera yang mendukung, umumnya Chrome Android), **frame-sync** lewat `requestVideoFrameCallback`, dan **penahan analisis** saat sensor gerak menunjukkan ponsel bergeser.
@@ -17,6 +17,10 @@ Pemantau anomali berbasis sensor ponsel dalam satu file `index.html`. Tidak ada 
 - **Filter manusia** (opsional): memuat model deteksi objek (TensorFlow.js dan COCO-SSD, versi dipatok, dari jsDelivr) hanya saat diaktifkan, lalu menandai orang sungguhan supaya tidak dihitung sebagai anomali. Butuh internet saat pertama dipakai.
 - **Peringatan** getar dan bunyi pada level 2 ke atas.
 - **Ekspor CSV** data tiap detik.
+
+## Tata letak ponsel
+
+Tombol **Mulai/Hentikan** dan **Kalibrasi** menempel di bawah layar bersama angka indeks dan bar pintasan ke tiap modul. Pengaturan dan alat kamera lanjutan dilipat. Teks penjelasan disembunyikan secara bawaan di layar kecil dan bisa dinyalakan di Pengaturan. Daftar klip bisa digulir, dan Ekspor data ada di Log kejadian.
 
 ## Cara memakai
 

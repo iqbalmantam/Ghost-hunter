@@ -114,7 +114,7 @@ canvas.spec { height: 150px; }
 .seg.on[data-c="warn"] { background: var(--warn); }
 .seg.on[data-c="crit"] { background: var(--crit); }
 .spec-wrap, .vib-wrap { position: relative; }
-.band { position: absolute; left: 0; right: 0; top: 57.5%; bottom: 3.75%; border-top: 1px dashed rgba(255, 178, 62, .6); border-bottom: 1px dashed rgba(255, 178, 62, .6); pointer-events: none; }
+.band { position: absolute; left: 0; right: 0; top: 80%; bottom: 4%; border-top: 1px dashed rgba(255, 178, 62, .6); border-bottom: 1px dashed rgba(255, 178, 62, .6); pointer-events: none; }
 .band span, .ax { position: absolute; font: 400 10px var(--f-mono); color: var(--fg); text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); letter-spacing: .04em; }
 .band span { right: 6px; top: 3px; }
 .ax { left: 6px; }
@@ -170,6 +170,34 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 .evp-item video { width: 100%; max-height: 260px; background: #000; border-radius: 3px; }
 
 @media (prefers-reduced-motion: reduce) { .led[data-on="1"] { animation: none; } .g-fill { transition: none; } }
+
+/* tata letak ponsel */
+.set { border: 1px solid var(--line); border-radius: 4px; background: var(--inset); }
+.set > summary { list-style: none; cursor: pointer; min-height: 44px; display: flex; align-items: center; padding: 0 12px; font: 500 12px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.set > summary::-webkit-details-marker { display: none; }
+.set > summary::after { content: "+"; margin-left: auto; font-size: 16px; }
+.set[open] > summary::after { content: "–"; }
+.set > .row, .set > .cam-tools { padding: 0 12px 12px; }
+.set.adv { margin-top: 8px; }
+.dock { position: sticky; bottom: 0; z-index: 20; display: grid; gap: 6px; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--bg) 78%, transparent); }
+.jump { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.jump a { flex: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--inset); color: var(--fg); font: 500 12px var(--f-mono); text-decoration: none; letter-spacing: .04em; }
+.dock-b { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.dock-b button.primary { grid-column: auto; }
+.dock-b button { padding: 8px 12px; }
+.dock-i { display: grid; place-items: center; min-width: 56px; border: 1px solid var(--line); border-radius: 4px; background: var(--inset); }
+.dock-i b { font: 600 20px var(--f-mono); line-height: 1; }
+.dock-i small { font: 400 9px var(--f-mono); color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }
+.mod { scroll-margin-top: 8px; }
+body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { display: none; }
+.evp, .gal-v { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 720px) {
+  .hero { gap: 12px; }
+  .gauge { max-height: 150px; }
+  button, .opt { min-height: 48px; }
+  .dock-b button.primary { min-height: 56px; font-size: 16px; }
+  .cam-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 </style>
 </head>
 <body>
@@ -215,6 +243,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
         <li><span>Mikrofon</span><span class="chip" id="chSnd" data-s="off">SIAGA</span></li>
         <li><span>Kamera</span><span class="chip" id="chCam" data-s="off">SIAGA</span></li>
       </ul>
+      <details class="set"><summary>Pengaturan</summary>
       <div class="row">
         <label for="sens"><span>Sensitivitas</span><span id="sensV">5 / 10</span></label>
         <input type="range" id="sens" min="1" max="10" step="1" value="5">
@@ -236,16 +265,15 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
         </div>
         <p class="hint">Genggam: kamera memisahkan gerakan ponsel dari gerakan objek, skor getaran 19 Hz diabaikan karena tremor tangan, dan latar magnet menyesuaikan lebih cepat. Diam: paling peka, cocok untuk sandaran atau tripod.</p>
       </div>
-      <div class="btns">
-        <button class="primary" id="toggle" type="button">Mulai pemindaian</button>
-        <button id="calib" type="button" disabled>Kalibrasi ulang</button>
-        <button id="export" type="button" disabled>Ekspor data</button>
+      <div class="row">
+        <label class="opt"><input type="checkbox" id="optHints"><span>Tampilkan teks penjelasan</span></label>
       </div>
+      </details>
     </div>
   </section>
 
   <section class="grid" aria-label="Modul sensor">
-    <article class="panel mod wide">
+    <article class="panel mod wide" id="mKam">
       <div class="mod-head"><span class="lbl">Kamera (visual)</span><span class="chip" id="camChip" data-s="off">SIAGA</span></div>
       <div class="camwrap" id="camWrap">
         <video id="camVid" playsinline muted autoplay></video>
@@ -253,8 +281,9 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
         <p class="cam-ph" id="camPh">Kamera belum aktif. Tekan &quot;Mulai pemindaian&quot; dan izinkan kamera.</p>
       </div>
       <div class="read-row"><p class="read"><span id="camV">—</span><small>% area</small></p><span class="sub-read" id="camD">kecerahan — · 0 objek</span></div>
-      <div class="cam-tools"><button id="camNight" type="button" aria-pressed="false">Mode malam: mati</button><button id="camSls" type="button" aria-pressed="false">Gaya SLS: mati</button><button id="camFlip" type="button" disabled>Balik kamera</button><button id="camTorch" type="button" aria-pressed="false" disabled>Senter: mati</button><button id="camLock" type="button" aria-pressed="false" disabled>Kunci eksposur: mati</button><button id="camLx" type="button" aria-pressed="false">Eksposur panjang: mati</button><button id="camHum" type="button" aria-pressed="false">Filter manusia: mati</button><button id="camEvid" type="button" aria-pressed="false">Bukti video: mati</button></div>
-      <p class="hint" id="camInfo" hidden></p>
+      <div class="cam-tools"><button id="camNight" type="button" aria-pressed="false">Mode malam: mati</button><button id="camSls" type="button" aria-pressed="false">Gaya SLS: mati</button><button id="camFlip" type="button" disabled>Balik kamera</button><button id="camTorch" type="button" aria-pressed="false" disabled>Senter: mati</button></div>
+      <details class="set adv"><summary>Alat kamera lanjutan</summary><div class="cam-tools"><button id="camLock" type="button" aria-pressed="false" disabled>Kunci eksposur: mati</button><button id="camLx" type="button" aria-pressed="false">Eksposur panjang: mati</button><button id="camHum" type="button" aria-pressed="false">Filter manusia: mati</button><button id="camEvid" type="button" aria-pressed="false">Bukti video: mati</button></div></details>
+      <p class="hint keep" id="camInfo" hidden></p>
       <p class="hint" id="slsHint" hidden>Gaya SLS hanya tampilan. Ponsel tidak punya sensor kedalaman inframerah, jadi titik-titik adalah hiasan dan kerangka digambar dari kotak gerak yang berbentuk tinggi, bukan pelacakan sendi sungguhan. Benda tegak seperti tirai atau kursi juga bisa tergambar sebagai sosok.</p>
       <p class="why" id="camWhy" hidden></p>
       <div class="lbl">Tangkapan anomali</div>
@@ -263,12 +292,12 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       <div class="evp" id="vidList" aria-live="polite"><p class="gal-empty" id="vidEmpty">Belum ada klip. Aktifkan "Bukti video" untuk merekam bergulir di latar. Saat anomali muncul, klip menyimpan sekitar 4 sampai 8 detik sebelum dan 3 detik sesudahnya. Klip hanya ada di halaman ini dan hilang saat pemindaian baru dimulai.</p></div>
       <p class="hint">Kamera membandingkan tiap frame dengan latar yang dipelajari. Kotak kuning atau merah menandai area yang berubah, titik terang di ruang gelap ditandai &quot;CAHAYA&quot;. Debu atau serangga dekat lensa, bayangan, dan perubahan eksposur otomatis sering terbaca sebagai anomali. Gambar tidak dikirim ke mana pun.</p>
     </article>
-    <article class="panel mod wide">
+    <article class="panel mod wide" id="mRad">
       <div class="mod-head"><span class="lbl">Radar anomali</span><span class="chip" id="radChip" data-s="off">SIAGA</span></div>
       <canvas class="radar" id="radarCv" aria-label="Radar: titik anomali dari kamera dan cincin kekuatan medan magnet, suara, dan getaran"></canvas>
-      <p class="hint">Atas radar adalah arah depan kamera. Titik berasal dari area gerak atau cahaya yang dilihat kamera: makin ke tepi berarti makin ke samping, makin ke tengah makin jauh. Cincin kuning = selisih medan magnet, cincin hijau putus-putus = energi pita suara, cincin merah putus halus = getaran 19 Hz. Ini tampilan dari data sensor, bukan pengukuran jarak atau arah hantu.</p>
+      <p class="hint">Atas radar adalah arah depan kamera. Titik berasal dari area gerak atau cahaya yang dilihat kamera: makin ke tepi berarti makin ke samping, makin ke tengah makin jauh. Cincin kuning = selisih medan magnet, cincin hijau putus-putus = energi frekuensi rendah, cincin merah putus halus = getaran 19 Hz. Ini tampilan dari data sensor, bukan pengukuran jarak atau arah hantu.</p>
     </article>
-    <article class="panel mod">
+    <article class="panel mod" id="mEmf">
       <div class="mod-head"><span class="lbl">Medan magnet (EMF)</span><span class="chip" id="emfChip" data-s="off">SIAGA</span></div>
       <div class="read-row"><p class="read"><span id="emfV">—</span><small>µT</small></p><span class="sub-read" id="emfD">Δ — µT dari latar</span></div>
       <div class="segs" id="emfSegs"><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg"></i></div>
@@ -277,7 +306,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       <p class="hint">Latar bumi sekitar 25 sampai 65 µT. Yang dinilai adalah selisih dari latar yang dikalibrasi. 1 µT sama dengan 10 mG.</p>
     </article>
 
-    <article class="panel mod">
+    <article class="panel mod" id="mVib">
       <div class="mod-head"><span class="lbl">Getaran (akselerometer)</span><span class="chip" id="vibChip" data-s="off">SIAGA</span></div>
       <div class="read-row"><p class="read"><span id="vibV">—</span><small>Hz</small></p><span class="sub-read" id="vibA">amplitudo — m/s²</span></div>
       <div class="vib-wrap">
@@ -291,25 +320,25 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       <p class="hint" id="vibHint">Pita 17.5 sampai 20.5 Hz ditandai. Laju sampel: —.</p>
     </article>
 
-    <article class="panel mod wide">
+    <article class="panel mod wide" id="mSnd">
       <div class="mod-head"><span class="lbl">Suara (mikrofon)</span><span class="chip" id="sndChip" data-s="off">SIAGA</span></div>
-      <div class="read-row"><p class="read"><span id="sndV">—</span><small>dBFS</small></p><span class="sub-read" id="sndD">pita suara — dB dari latar</span></div>
+      <div class="read-row"><p class="read"><span id="sndV">—</span><small>dBFS</small></p><span class="sub-read" id="sndD">frek. rendah — dB dari latar</span></div>
       <div class="spec-wrap">
         <canvas class="spec" id="specCv" aria-label="Spektrogram mikrofon bergulir"></canvas>
-        <div class="band"><span>300–3400 Hz · suara manusia</span></div>
-        <span class="ax" style="top:2px">8k</span>
-        <span class="ax" style="top:calc(50% - 6px)">4k</span>
+        <div class="band"><span>20–100 Hz · dinilai</span></div>
+        <span class="ax" style="top:2px">500</span>
+        <span class="ax" style="top:calc(50% - 6px)">250 Hz</span>
         <span class="ax" style="bottom:2px">0</span>
       </div>
       <p class="why" id="sndWhy" hidden></p>
       <div class="evp-head"><label class="opt"><input type="checkbox" id="optEvp" checked><span>Rekam EVP otomatis</span></label><span class="sub-read" id="evpN">0 klip</span></div>
-      <div class="evp" id="evpList" aria-live="polite"><p class="gal-empty" id="evpEmpty">Belum ada klip. Rekaman otomatis dimulai saat energi di pita suara naik dan berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.</p></div>
-      <p class="hint">Warna menunjukkan energi di atas latar tiap frekuensi. Mikrofon ponsel tidak merekam infrasonik, dan dBFS bukan desibel tekanan suara.</p>
+      <div class="evp" id="evpList" aria-live="polite"><p class="gal-empty" id="evpEmpty">Belum ada klip. Rekaman otomatis dimulai saat energi frekuensi rendah (20 sampai 100 Hz) naik dan berhenti. Suara manusia diabaikan; rekaman berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.</p></div>
+      <p class="hint">Hanya frekuensi rendah (0 sampai 500 Hz) yang dibaca; saat suara manusia (300 sampai 3400 Hz) terdeteksi, layar suara dibekukan dan klip tidak direkam. Mikrofon ponsel tidak merekam infrasonik, dan dBFS bukan desibel tekanan suara.</p>
     </article>
   </section>
 
-  <section class="panel log">
-    <div class="log-head"><h2 class="lbl">Log kejadian</h2></div>
+  <section class="panel log" id="mLog">
+    <div class="log-head"><h2 class="lbl">Log kejadian</h2><button id="export" type="button" disabled>Ekspor data</button></div>
     <ol class="entries" id="log"></ol>
   </section>
 
@@ -325,7 +354,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     </details>
     <details>
       <summary>Suara dan EVP</summary>
-      <p>Electronic Voice Phenomena populer lewat Friedrich Jürgenson dan Konstantīns Raudive pada 1960-an. Suara manusia berada di sekitar 300 sampai 3400 Hz, maka energi di pita itu dihitung relatif terhadap latar ruangan. Pareidolia pendengaran dan interferensi radio menjelaskan hampir semua kasus.</p>
+      <p>Electronic Voice Phenomena populer lewat Friedrich Jürgenson dan Konstantīns Raudive pada 1960-an. Suara manusia berada di sekitar 300 sampai 3400 Hz, maka pita itu hanya dipakai sebagai gerbang: bila terdeteksi, suara diabaikan. Yang dinilai adalah energi 20 sampai 100 Hz relatif terhadap latar ruangan (dengung, getaran struktur, mesin). Pareidolia pendengaran dan interferensi radio menjelaskan hampir semua kasus.</p>
     </details>
     <details>
       <summary>Kamera</summary>
@@ -341,7 +370,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     </details>
     <details>
       <summary>Radar, EVP, dan gaya SLS</summary>
-      <p>Radar menggambar ulang data sensor: titik dari kotak gerak kamera dan cincin dari skor EMF, suara, dan getaran. Rekaman EVP otomatis menyimpan klip pendek dari mikrofon saat energi pita suara naik, supaya bisa didengar ulang dengan telinga, bukan dengan angka. Kamera SLS asli memakai proyektor inframerah dan sensor kedalaman, lalu perangkat lunak menggambar kerangka pada sosok yang dikira manusia. Penelitian skeptis menunjukkan kerangka itu muncul juga pada kursi, tanaman, dan tirai, dan &quot;menari&quot; saat derau tinggi. Gaya SLS di sini hanya meniru tampilannya dari gerakan yang terlihat kamera biasa.</p>
+      <p>Radar menggambar ulang data sensor: titik dari kotak gerak kamera dan cincin dari skor EMF, suara, dan getaran. Rekaman EVP otomatis menyimpan klip pendek dari mikrofon saat energi frekuensi rendah naik, supaya bisa didengar ulang dengan telinga, bukan dengan angka. Kamera SLS asli memakai proyektor inframerah dan sensor kedalaman, lalu perangkat lunak menggambar kerangka pada sosok yang dikira manusia. Penelitian skeptis menunjukkan kerangka itu muncul juga pada kursi, tanaman, dan tirai, dan &quot;menari&quot; saat derau tinggi. Gaya SLS di sini hanya meniru tampilannya dari gerakan yang terlihat kamera biasa.</p>
     </details>
     <details>
       <summary>Pelacak, kunci eksposur, kedip lampu, dan penyaring salah baca</summary>
@@ -349,6 +378,10 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     </details>
   </section>
 
+  <nav class="dock" aria-label="Kontrol utama">
+    <div class="jump" id="jump"><a href="#mKam">Kamera</a><a href="#mRad">Radar</a><a href="#mEmf">EMF</a><a href="#mVib">Getaran</a><a href="#mSnd">Suara</a><a href="#mLog">Log</a></div>
+    <div class="dock-b"><span class="dock-i" aria-hidden="true"><b id="dockNum">0</b><small>indeks</small></span><button class="primary" id="toggle" type="button">Mulai pemindaian</button><button id="calib" type="button" disabled>Kalibrasi</button></div>
+  </nav>
   <footer>GHOST DETECTOR PRO · SENSOR PERANGKAT<br>Developed by iqbalmantam</footer>
 </main>
 
@@ -378,13 +411,14 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     cam: 'serangga atau debu dekat lensa, bayangan, pantulan, perubahan eksposur otomatis, atau orang dan hewan yang bergerak'
   };
   var TAG = { mag: 'EMF', vib: 'GETAR', snd: 'SUARA', cam: 'KAMERA' };
-  var NAME = { mag: 'Penyimpangan medan magnet', vib: 'Getaran tidak biasa', snd: 'Energi tidak biasa di pita suara', cam: 'Anomali visual di kamera' };
+  var dockNum = document.getElementById('dockNum');
+  var NAME = { mag: 'Penyimpangan medan magnet', vib: 'Getaran tidak biasa', snd: 'Energi tidak biasa di frekuensi rendah', cam: 'Anomali visual di kamera' };
 
   var S = {
     running: false, t: 0, t0: 0, idx: 0, peak: 0, evCount: 0,
     magB: null, magBase: null, magN: 0, magSum: 0, magDev: 0, magLast: 0, magH: [],
     spec: [], fs: 0, vibDom: 0, vibAmp: 0, vibA19: 0, vibRms: 0, vibCap: false, vibLast: 0, vibClock: 0, vibFloor: 0, lastTick: 0, dt: DT,
-    dB: null, voc: 0, sndLast: 0, sndWarm: 0,
+    dB: null, voc: 0, vox: 0, voice: false, voiceT: 0, sndLast: 0, sndWarm: 0,
     rows: [], rowClock: 0,
     camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false, night: false, sls: false, sE: 0, sI: 0, sV: 0, phoneMoving: false, mvAcc: 0, mvGyro: 0, mvT: 0, persons: [], personT: 0, camTop: ''
   };
@@ -394,7 +428,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   var HAND = { on: true };
   var EVP = { on: true, rec: null, chunks: [], t0: 0, quiet: 0, peak: 0 };
   var CAN_REC = typeof window.MediaRecorder !== 'undefined';
-  var EVP_EMPTY = 'Belum ada klip. Rekaman otomatis dimulai saat energi di pita suara naik dan berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.';
+  var EVP_EMPTY = 'Belum ada klip. Rekaman otomatis dimulai saat energi frekuensi rendah (20 sampai 100 Hz) naik dan berhenti. Suara manusia diabaikan; rekaman berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.';
   var BL = [], blT = 0;
   var btnSls = $('camSls'), btnTorch = $('camTorch'), torchOn = false;
   var btnLock = $('camLock'), btnLx = $('camLx'), btnHum = $('camHum'), btnVid = $('camEvid');
@@ -446,7 +480,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     Object.keys(CV).forEach(function (k) { if (fit(CV[k]) && k === 'specCv') clearSpec(); });
   }
 
-  var SN = 48, binFloor = null;
+  var SN = 40, LOHZ = 500, VN = 12, binFloor = null, voxFloor = null;
   function specCol(vals) {
     var c = CV.specCv, x = c.ctx, w = c.w, h = c.h, step = Math.max(1, Math.round(DPR * 2));
     x.drawImage(c.el, -step, 0);
@@ -582,7 +616,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     if (ALERT.beep) beep(lv);
   }
 
-  /* EVP: rekam klip pendek saat energi pita suara naik */
+  /* EVP: rekam klip pendek saat energi frekuensi rendah naik */
   function evpSync() { $('evpN').textContent = $('evpList').getElementsByClassName('evp-item').length + ' klip'; }
   function clearEvp() {
     var l = $('evpList'), items = l.getElementsByClassName('evp-item');
@@ -597,7 +631,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var ext = /ogg/.test(blob.type) ? 'ogg' : /mp4|aac/.test(blob.type) ? 'm4a' : 'webm';
     var it = document.createElement('div'); it.className = 'evp-item'; it._url = url;
     var cap = document.createElement('div'); cap.className = 'cap';
-    var tx = document.createElement('span'); tx.textContent = fmt(S.t) + ' · ' + dur.toFixed(1) + ' dtk · pita suara +' + pk.toFixed(0) + ' dB';
+    var tx = document.createElement('span'); tx.textContent = fmt(S.t) + ' · ' + dur.toFixed(1) + ' dtk · frekuensi rendah +' + pk.toFixed(0) + ' dB';
     var dl = document.createElement('a'); dl.href = url; dl.download = 'evp-' + fmt(S.t).replace(/:/g, '') + '.' + ext; dl.textContent = 'Simpan';
     var rv = document.createElement('button'); rv.type = 'button'; rv.textContent = 'Putar mundur';
     rv.addEventListener('click', function () { evpReverse(blob, rv); });
@@ -838,7 +872,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       src.connect(an);
       SENS.snd.stream = stream; SENS.snd.ac = AC; SENS.snd.an = an;
       FD = new Float32Array(an.frequencyBinCount); TD = new Float32Array(an.fftSize);
-      binFloor = null; S.sndWarm = 0; S.dB = null; S.voc = 0;
+      binFloor = null; voxFloor = null; S.sndWarm = 0; S.dB = null; S.voc = 0; S.voice = false; S.voiceT = 0;
       setState('snd', 'on');
     }).catch(function (err) {
       try { AC.close(); } catch (e) {}
@@ -858,19 +892,37 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var ss = 0; for (i = 0; i < TD.length; i++) ss += TD[i] * TD[i];
     var rms = Math.sqrt(ss / TD.length); S.dB = rms > 0 ? Math.max(-100, 20 * Math.log10(rms)) : -100;
     if (!binFloor) { binFloor = new Float32Array(SN); for (i = 0; i < SN; i++) binFloor[i] = NaN; }
-    var vals = new Array(SN), vSum = 0, vN = 0;
+    if (!voxFloor) { voxFloor = new Float32Array(VN); for (i = 0; i < VN; i++) voxFloor[i] = NaN; }
+    /* gerbang suara manusia: energi 300-3400 Hz dihitung terpisah; bila naik, pita rendah diabaikan */
+    var vxSum = 0;
+    for (i = 0; i < VN; i++) {
+      var g0 = Math.floor((300 + i * (3100 / VN)) / bin), g1 = Math.max(g0, Math.floor((300 + (i + 1) * (3100 / VN)) / bin)), dv = -200;
+      for (j = g0; j <= g1 && j < FD.length; j++) if (FD[j] > dv) dv = FD[j];
+      if (!isFinite(dv) || dv < -200) dv = -120;
+      if (isNaN(voxFloor[i])) voxFloor[i] = dv;
+      voxFloor[i] += (dv < voxFloor[i] ? 0.2 : 0.004) * (dv - voxFloor[i]);
+      vxSum += dv - voxFloor[i];
+    }
+    S.vox = vxSum / VN;
+    var nowT = performance.now();
+    if (S.sndWarm > 30 && S.vox > 8) S.voiceT = nowT;
+    S.voice = nowT - S.voiceT < 800;
+    /* pita rendah 0-500 Hz, skor dari 20-100 Hz */
+    var vals = new Array(SN), ex3 = [];
     for (i = 0; i < SN; i++) {
-      var f0 = i / SN * 8000, f1 = (i + 1) / SN * 8000, b0 = Math.floor(f0 / bin), b1 = Math.max(b0, Math.floor(f1 / bin)), db = -200;
+      var f0 = i / SN * LOHZ, f1 = (i + 1) / SN * LOHZ, b0 = Math.floor(f0 / bin), b1 = Math.max(b0, Math.floor(f1 / bin)), db = -200;
       for (j = b0; j <= b1 && j < FD.length; j++) if (FD[j] > db) db = FD[j];
       if (!isFinite(db) || db < -200) db = -120;
       if (isNaN(binFloor[i])) binFloor[i] = db;
       binFloor[i] += (db < binFloor[i] ? 0.2 : 0.004) * (db - binFloor[i]);
       var ex = db - binFloor[i];
-      vals[i] = clamp(0.1 + ex / 30, 0, 1);
-      var fc = (f0 + f1) / 2; if (fc >= 300 && fc <= 3400) { vSum += ex; vN++; }
+      vals[i] = S.voice ? 0.1 : clamp(0.1 + ex / 30, 0, 1);
+      var fc = (f0 + f1) / 2; if (fc >= 20 && fc <= 100) ex3.push(ex);
     }
+    ex3.sort(function (a, b) { return b - a; });
+    var lo = ex3.length ? (ex3[0] + (ex3[1] || ex3[0]) + (ex3[2] || ex3[0])) / 3 : 0;
     S.sndWarm++;
-    S.voc = (S.sndWarm > 30 && vN) ? Math.max(0, vSum / vN) : 0;
+    S.voc = (S.sndWarm > 30 && !S.voice) ? clamp(lo, 0, 40) : 0;
     specCol(vals);
   }
 
@@ -1570,7 +1622,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 
     if (magOn) track('mag', sE, 'Δ ' + S.magDev.toFixed(1) + ' µT dari latar', cnt);
     if (vibOn) track('vib', sI, 'puncak ' + S.vibDom.toFixed(1) + ' Hz, pita 19 Hz ' + S.vibA19.toFixed(3) + ' m/s²', cnt);
-    if (sndOn) track('snd', sV, 'pita suara +' + S.voc.toFixed(0) + ' dB dari latar', cnt);
+    if (sndOn) track('snd', sV, 'frekuensi rendah +' + S.voc.toFixed(0) + ' dB dari latar', cnt);
     if (camOn) {
       var hasL = S.camBoxes.some(function (b) { return b.type === 'CAHAYA'; });
       track('cam', sC, (hasL ? 'titik cahaya muncul' : 'gerakan di depan lensa') + ', area ' + S.camArea.toFixed(0) + '%, ' + S.camObj + ' objek' + (S.camTop ? ', ' + S.camTop : ''), cnt, camSnap);
@@ -1605,7 +1657,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var lv = levelOf(S.idx);
     el.clock.textContent = fmt(S.t);
     el.dur.textContent = pad(Math.floor(S.t / 60)) + ':' + pad(Math.floor(S.t) % 60);
-    el.num.textContent = Math.round(S.idx);
+    el.num.textContent = Math.round(S.idx); dockNum.textContent = Math.round(S.idx);
     el.arc.setAttribute('stroke-dasharray', S.idx.toFixed(1) + ' 100');
     el.gauge.setAttribute('data-lvl', lv);
     el.level.textContent = 'Level ' + lv + ' · ' + LEVELS[lv];
@@ -1639,9 +1691,9 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     /* sound */
     var sOn = SENS.snd.st === 'on';
     el.sndV.textContent = (sOn && S.dB != null) ? S.dB.toFixed(0) : '—';
-    el.sndD.textContent = 'pita suara ' + ((sOn && S.sndWarm > 30) ? '+' + S.voc.toFixed(0) : '—') + ' dB dari latar';
+    el.sndD.textContent = (sOn && S.voice) ? 'suara manusia diabaikan' : 'frek. rendah ' + ((sOn && S.sndWarm > 30) ? '+' + S.voc.toFixed(0) : '—') + ' dB dari latar';
     ex = null;
-    if (sOn) ex = S.sndWarm <= 30 ? ['warn', 'KALIBRASI'] : S.voc < 8 ? ['ok', 'DERAU'] : S.voc < 16 ? ['warn', 'POLA'] : ['crit', 'ANOMALI'];
+    if (sOn) ex = S.sndWarm <= 30 ? ['warn', 'KALIBRASI'] : S.voice ? ['ok', 'SUARA DIABAIKAN'] : S.voc < 8 ? ['ok', 'DERAU'] : S.voc < 16 ? ['warn', 'POLA'] : ['crit', 'ANOMALI'];
     sensorChip('snd', el.sndChip, ex); sensorChip('snd', el.chSnd); why('snd', el.sndWhy);
 
     /* camera */
@@ -1667,7 +1719,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   function resetData() {
     S.t = 0; S.t0 = performance.now(); S.idx = 0; S.peak = 0; S.evCount = 0; S.magH = []; S.rows = []; S.rowClock = 0;
     S.magBase = null; S.magSum = 0; S.magN = 0; S.magDev = 0; S.spec = []; S.vibDom = 0; S.vibAmp = 0; S.vibA19 = 0;
-    S.sndWarm = 0; S.voc = 0; binFloor = null; S.vibFloor = 0; S.vibCap = false; S.fs = 0; S.lastTick = 0;
+    S.sndWarm = 0; S.voc = 0; binFloor = null; voxFloor = null; S.voice = false; S.vibFloor = 0; S.vibCap = false; S.fs = 0; S.lastTick = 0;
     S.camWarm = 0; S.camS = 0; S.camArea = 0; S.camObj = 0; S.camBoxes = []; S.camHeat.fill(0); camBg = null; clearGallery();
     TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); VB = []; vLP = null;
     clearEvp(); BL = []; ALERT.lv = 0; S.sE = 0; S.sI = 0; S.sV = 0;
@@ -1721,13 +1773,13 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   }
   el.toggle.addEventListener('click', function () { if (S.running) stop(); else start(); });
   el.calib.addEventListener('click', function () {
-    S.magBase = null; S.magSum = 0; S.magN = 0; S.magDev = 0; S.magH = []; binFloor = null; S.sndWarm = 0; S.voc = 0; S.spec = []; VB = [];
+    S.magBase = null; S.magSum = 0; S.magN = 0; S.magDev = 0; S.magH = []; binFloor = null; voxFloor = null; S.voice = false; S.sndWarm = 0; S.voc = 0; S.spec = []; VB = [];
     camBg = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0);
     TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); S.idx = 0; clearSpec();
     addLog('SISTEM', 'Kalibrasi ulang. Latar magnet dan suara diukur ulang.', 'ok');
   });
   el.exp.addEventListener('click', function () {
-    var head = 't_detik,medan_uT,deviasi_uT,getaran_dominan_Hz,getaran_19Hz_ms2,mikrofon_dBFS,pita_suara_dB,kamera_area_persen,indeks';
+    var head = 't_detik,medan_uT,deviasi_uT,getaran_dominan_Hz,getaran_19Hz_ms2,mikrofon_dBFS,frek_rendah_dB,kamera_area_persen,indeks';
     var csv = head + '\n' + S.rows.map(function (r) { return r.join(','); }).join('\n') + '\n';
     var blob = new Blob([csv], { type: 'text/csv' }), url = URL.createObjectURL(blob), a = document.createElement('a');
     var d = new Date();
@@ -1770,7 +1822,11 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   /* pengaturan peringatan, EVP, gaya SLS, senter */
   function loadOpt(k, d) { try { var v = localStorage.getItem('gdp.' + k); return v == null ? d : v === '1'; } catch (e) { return d; } }
   function saveOpt(k, v) { try { localStorage.setItem('gdp.' + k, v ? '1' : '0'); } catch (e) {} }
-  var optVib = $('optVib'), optBeep = $('optBeep'), optEvp = $('optEvp');
+  var optVib = $('optVib'), optBeep = $('optBeep'), optEvp = $('optEvp'), optHints = $('optHints');
+  var hintsDef = !(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
+  function applyHints() { document.body.classList.toggle('nohint', !optHints.checked); }
+  optHints.checked = loadOpt('hints', hintsDef); applyHints();
+  optHints.addEventListener('change', function () { saveOpt('hints', optHints.checked); applyHints(); });
   ALERT.vib = !!navigator.vibrate && loadOpt('vib', true); ALERT.beep = loadOpt('beep', false); EVP.on = CAN_REC && loadOpt('evp', true);
   optVib.checked = ALERT.vib; optBeep.checked = ALERT.beep; optEvp.checked = EVP.on;
   if (!navigator.vibrate) { optVib.disabled = true; optVib.title = 'Browser ini tidak mendukung getar'; }
