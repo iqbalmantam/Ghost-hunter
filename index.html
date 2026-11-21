@@ -188,11 +188,15 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 .dock-b button { padding: 8px 12px; }
 .dock-i { display: grid; place-items: center; min-width: 56px; border: 1px solid var(--line); border-radius: 4px; background: var(--inset); }
 .dock-i b { font: 600 20px var(--f-mono); line-height: 1; }
-.dock-i small { font: 400 9px var(--f-mono); color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }
+.dock-i small { font: 400 11px var(--f-mono); color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }
 .mod { scroll-margin-top: 8px; }
 body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { display: none; }
 .evp, .gal-v { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
+html { scroll-padding-bottom: 150px; }
 @media (max-width: 720px) {
+  .hint, .why { font-size: 14px; }
+  .evp-item .cap { font-size: 12px; }
+  .jump a { padding: 10px 14px; font-size: 13px; }
   canvas.radar { max-width: 280px; }
   .hero { gap: 12px; }
   .gauge { max-height: 150px; }
