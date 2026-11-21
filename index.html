@@ -192,6 +192,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { display: none; }
 .evp, .gal-v { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
 @media (max-width: 720px) {
+  canvas.radar { max-width: 280px; }
   .hero { gap: 12px; }
   .gauge { max-height: 150px; }
   button, .opt { min-height: 48px; }
@@ -548,7 +549,7 @@ body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { d
       if (hit) { hit.t = now; hit.a = ang; hit.r = rr; }
       else BL.push({ a: ang, r: rr, t: now, s: clamp(b.size / 20, 0, 1), c: b.sev === 'crit' ? COL.crit : COL.warn });
     });
-    while (BL.length > 40) BL.shift();
+    while (BL.length > 24) BL.shift();
   }
   function ring(x, cx, cy, r, col, lw, dash, alpha) {
     x.save(); x.strokeStyle = col; x.lineWidth = lw; x.globalAlpha = alpha; x.setLineDash(dash || []);
@@ -580,11 +581,11 @@ body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { d
     for (i = BL.length - 1; i >= 0; i--) {
       var b = BL[i], age = (now - b.t) / 1000;
       if (age > 5) { BL.splice(i, 1); continue; }
-      var bx = cx + Math.cos(b.a) * b.r * R, by = cy + Math.sin(b.a) * b.r * R, al = 1 - age / 5;
+      var bx = cx + Math.cos(b.a) * b.r * R, by = cy + Math.sin(b.a) * b.r * R, al = (1 - age / 5) * (b.c === COL.crit ? 1 : 0.6), rs = b.c === COL.crit ? 1 : 0.7;
       x.globalAlpha = al; x.fillStyle = b.c;
-      x.beginPath(); x.arc(bx, by, (3 + b.s * 4) * DPR, 0, 6.2832); x.fill();
+      x.beginPath(); x.arc(bx, by, (3 + b.s * 4) * rs * DPR, 0, 6.2832); x.fill();
       x.globalAlpha = al * 0.5; x.strokeStyle = b.c; x.lineWidth = 1 * DPR;
-      x.beginPath(); x.arc(bx, by, (5 + b.s * 4 + age * 3) * DPR, 0, 6.2832); x.stroke();
+      x.beginPath(); x.arc(bx, by, (5 + b.s * 4 + age * 3) * rs * DPR, 0, 6.2832); x.stroke();
     }
     drawRadarTrails(x, cx, cy, R);
     x.globalAlpha = 1; x.fillStyle = COL.fg || '#dbe6e3';
