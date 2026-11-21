@@ -180,6 +180,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 .set > .row, .set > .cam-tools { padding: 0 12px 12px; }
 .set.adv { margin-top: 8px; }
 .dock { position: sticky; bottom: 0; z-index: 20; display: grid; gap: 6px; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--bg) 78%, transparent); }
+.dock.hide-jump .jump { display: none; }
 .jump { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .jump a { flex: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--inset); color: var(--fg); font: 500 12px var(--f-mono); text-decoration: none; letter-spacing: .04em; }
 .dock-b { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
@@ -1002,11 +1003,11 @@ body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { d
     }
     for (ci = 0; ci < GN; ci++) { cAbs[ci] /= 16; cSig[ci] /= 16; cBg[ci] /= 16; cR[ci] /= 16; cG[ci] /= 16; cB[ci] /= 16; }
     var nz = Array.prototype.slice.call(cAbs).sort(function (a, b) { return a - b; })[GN >> 1];
-    var thr = Math.max(5, (8 + 3 * nz) * (1.5 - sens * 0.1) * (S.night ? 0.85 : 1));
+    var thr = Math.max(5, (8 + 3 * nz) * (1.5 - sens * 0.1) * (S.night ? 0.85 : 1) * (HAND.on ? 1.5 : 1));
     var fl = new Uint8Array(GN), nf = 0;
     if (S.camWarm >= 20) for (ci = 0; ci < GN; ci++) if (cAbs[ci] > thr) { fl[ci] = 1; nf++; }
 
-    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22 || S.phoneMoving || (sh && (Math.abs(sh.dx) >= 4 || Math.abs(sh.dy) >= 4)));
+    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22 || S.phoneMoving || (sh && (Math.abs(sh.dx) >= 3 || Math.abs(sh.dy) >= 3)));
     S.camShake = shake;
     var rate = (S.camWarm < 30 || shake) ? (shake ? 0.4 : 0.2) : 0.03;
     for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
@@ -1041,7 +1042,13 @@ body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { d
       boxes.push({ x0: mnx / GX, x1: (mxx + 1) / GX, y0: mny / GY, y1: (mxy + 1) / GY, type: isL ? 'CAHAYA' : 'GERAK', size: size, delta: Math.round(mAbs), sig: mSig,
         ir: isL && (mR + mB) / 2 - mG > 18 && (mR + mG + mB) / 3 > 70 });
     }
-    refineBoxes(boxes, thr); trackBoxes(boxes); markPersons(boxes);
+    refineBoxes(boxes, thr); trackBoxes(boxes);
+    /* genggam: sisa selisih di tepi kontras akibat goyang tangan biasanya muncul sekejap, jadi hanya objek yang bertahan >= 0,4 dtk (atau titik cahaya kuat) ditampilkan, maksimal 4 terbesar */
+    if (HAND.on) {
+      boxes = boxes.filter(function (b) { return b.life >= 0.4 || (b.type === 'CAHAYA' && b.delta > 40); })
+        .sort(function (a, c) { return c.size - a.size; }).slice(0, 4);
+    }
+    markPersons(boxes);
     tot = 0; boxes.forEach(function (b) { tot += b.size * b.w; });
     var f = tot / GN, areaS = clamp((f * 100 * k - 2) / 18, 0, 1), orbS = 0;
     boxes.forEach(function (b) { if (b.type === 'CAHAYA' && b.size <= 14) orbS = Math.max(orbS, clamp((b.delta - 15) / 50, 0, 1) * 0.85 * b.w); });
@@ -1826,6 +1833,8 @@ body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { d
   var optVib = $('optVib'), optBeep = $('optBeep'), optEvp = $('optEvp'), optHints = $('optHints');
   var hintsDef = !(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
   function applyHints() { document.body.classList.toggle('nohint', !optHints.checked); }
+  (function () { var ly = window.scrollY, dk = document.querySelector('.dock');
+    window.addEventListener('scroll', function () { var y = window.scrollY; if (Math.abs(y - ly) < 12) return; dk.classList.toggle('hide-jump', y > ly); ly = y; }, { passive: true }); })();
   optHints.checked = loadOpt('hints', hintsDef); applyHints();
   optHints.addEventListener('change', function () { saveOpt('hints', optHints.checked); applyHints(); });
   ALERT.vib = !!navigator.vibrate && loadOpt('vib', true); ALERT.beep = loadOpt('beep', false); EVP.on = CAN_REC && loadOpt('evp', true);
