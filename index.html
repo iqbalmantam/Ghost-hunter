@@ -916,7 +916,7 @@ body.nohint .hint:not(.keep), body.nohint .note:not(.warn), body.nohint .sub { d
       if (isNaN(binFloor[i])) binFloor[i] = db;
       binFloor[i] += (db < binFloor[i] ? 0.2 : 0.004) * (db - binFloor[i]);
       var ex = db - binFloor[i];
-      vals[i] = S.voice ? 0.1 : clamp(0.1 + ex / 30, 0, 1);
+      vals[i] = (S.voice || S.sndWarm <= 30) ? 0.1 : clamp(0.1 + ex / 30, 0, 1);
       var fc = (f0 + f1) / 2; if (fc >= 20 && fc <= 100) ex3.push(ex);
     }
     ex3.sort(function (a, b) { return b - a; });
