@@ -20,7 +20,13 @@ Pemantau anomali berbasis sensor ponsel dalam satu file `index.html`. Tidak ada 
 
 ## Cara memakai
 
-Buka lewat alamat `https://` (misalnya GitHub Pages), karena sensor dan kamera hanya jalan di konteks aman. Tekan "Mulai pemindaian", izinkan sensor, lalu letakkan ponsel diam di permukaan datar beberapa detik untuk kalibrasi.
+Buka lewat alamat `https://` (misalnya GitHub Pages), karena sensor dan kamera hanya jalan di konteks aman. Tekan "Mulai pemindaian", izinkan sensor, lalu arahkan ponsel ke satu area beberapa detik untuk kalibrasi.
+
+**Posisi ponsel** (di pengaturan, tersimpan di browser):
+- **Genggam atau bergerak** (bawaan): kamera mengompensasi geseran antar frame sehingga hanya gerakan independen yang dihitung, skor getaran 19 Hz diabaikan karena tremor tangan, dan latar magnet menyesuaikan lebih cepat (lonjakan mendadak tetap terbaca). Analisis kamera hanya ditahan bila ponsel diputar sangat cepat.
+- **Diam di sandaran**: paling peka, cocok untuk sandaran atau tripod.
+
+Saat dipegang, pembacaan EMF dan terutama getaran memang kurang andal. Gerakan kamera sangat cepat atau buram tetap tidak bisa dianalisis.
 
 ## Kompatibilitas
 

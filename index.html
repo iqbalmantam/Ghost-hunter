@@ -189,7 +189,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   </header>
 
   <p class="note warn" id="secWarn" hidden>Halaman ini tidak berjalan di konteks aman. Buka lewat alamat https:// (misalnya GitHub Pages) agar browser mengizinkan sensor.</p>
-  <p class="note">Angka berasal dari sensor perangkat Anda. Tidak ada alat yang terbukti bisa mendeteksi hantu, jadi setiap anomali di sini hampir selalu punya sebab biasa: magnet, kabel, getaran lantai, atau derau. Letakkan ponsel diam di permukaan datar atau sandaran saat memindai. Kamera menandai gerakan atau titik cahaya apa pun di depan lensa.</p>
+  <p class="note">Angka berasal dari sensor perangkat Anda. Tidak ada alat yang terbukti bisa mendeteksi hantu, jadi setiap anomali di sini hampir selalu punya sebab biasa: magnet, kabel, getaran lantai, atau derau. Paling sensitif bila ponsel diam di sandaran, tetapi mode genggam (di pengaturan) bisa dipakai sambil memegang atau berjalan. Kamera menandai gerakan atau titik cahaya apa pun di depan lensa.</p>
 
   <section class="panel hero" aria-label="Indeks anomali dan kontrol">
     <div>
@@ -227,6 +227,14 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
           <label class="opt"><input type="checkbox" id="optBeep"><span>Bunyi</span></label>
         </div>
         <p class="hint">Aktif saat indeks naik ke level 2 atau lebih. Bunyi bisa terekam mikrofon, jadi dimatikan secara bawaan.</p>
+      </div>
+      <div class="row">
+        <span class="lbl">Posisi ponsel</span>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="pos" id="posHand" checked><span>Genggam atau bergerak</span></label>
+          <label class="opt"><input type="radio" name="pos" id="posStill"><span>Diam di sandaran</span></label>
+        </div>
+        <p class="hint">Genggam: kamera memisahkan gerakan ponsel dari gerakan objek, skor getaran 19 Hz diabaikan karena tremor tangan, dan latar magnet menyesuaikan lebih cepat. Diam: paling peka, cocok untuk sandaran atau tripod.</p>
       </div>
       <div class="btns">
         <button class="primary" id="toggle" type="button">Mulai pemindaian</button>
@@ -383,6 +391,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   var SENS = { mag: { st: 'idle', obj: null }, vib: { st: 'idle' }, snd: { st: 'idle', stream: null, ac: null, an: null }, cam: { st: 'idle', stream: null, facing: 'environment' } };
   var timer = null, wake = null;
   var ALERT = { beep: false, vib: true, ac: null, last: 0, lv: 0 };
+  var HAND = { on: true };
   var EVP = { on: true, rec: null, chunks: [], t0: 0, quiet: 0, peak: 0 };
   var CAN_REC = typeof window.MediaRecorder !== 'undefined';
   var EVP_EMPTY = 'Belum ada klip. Rekaman otomatis dimulai saat energi di pita suara naik dan berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.';
@@ -730,7 +739,8 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   function onMag() {
     var m = SENS.mag.obj; if (!m || m.x == null) return;
     var b = Math.sqrt(m.x * m.x + m.y * m.y + m.z * m.z);
-    S.magLast = performance.now();
+    var nowM = performance.now(), dtm = S.magLast ? Math.min(0.5, (nowM - S.magLast) / 1000) : 0.02;
+    S.magLast = nowM;
     S.magB = S.magB == null ? b : S.magB + 0.3 * (b - S.magB);
     if (S.magBase == null) {
       S.magSum += b; S.magN++;
@@ -738,7 +748,9 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       S.magDev = 0;
     } else {
       S.magDev = Math.abs(S.magB - S.magBase);
-      if (S.magDev < 1.5) S.magBase += 0.003 * (S.magB - S.magBase);
+      /* genggam: latar ikut bergeser pelan (tau 2,5 dtk) agar berjalan melewati logam tidak terbaca anomali, lonjakan mendadak tetap terbaca */
+      if (HAND.on) { if (S.magDev < 6) S.magBase += (1 - Math.exp(-dtm / 2.5)) * (S.magB - S.magBase); }
+      else if (S.magDev < 1.5) S.magBase += 0.003 * (S.magB - S.magBase);
     }
     if (SENS.mag.st === 'wait' || SENS.mag.st === 'off') setState('mag', 'on');
   }
@@ -924,9 +936,14 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     S.camWarm++;
     var mb = 0; for (i = 0; i < n; i++) mb += camBg[i]; mb /= n;
     var gain = clamp(mb / Math.max(S.camLum, 1), 0.7, 1.4);
-    var cAbs = new Float32Array(GN), cSig = new Float32Array(GN), cBg = new Float32Array(GN), cR = new Float32Array(GN), cG = new Float32Array(GN), cB = new Float32Array(GN), x, y, ci, dv;
+    /* genggam: geser global antar frame dikompensasi supaya hanya gerakan independen yang tersisa */
+    var sh = HAND.on ? estShift(g, camBg, gain) : null;
+    if (sh && !camTmp) camTmp = new Float32Array(n);
+    var cAbs = new Float32Array(GN), cSig = new Float32Array(GN), cBg = new Float32Array(GN), cR = new Float32Array(GN), cG = new Float32Array(GN), cB = new Float32Array(GN), x, y, ci, dv, sx, sy;
     for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
-      i = y * CW + x; ci = (y >> 2) * GX + (x >> 2); dv = g[i] * gain - camBg[i];
+      i = y * CW + x; ci = (y >> 2) * GX + (x >> 2);
+      if (sh) { sx = x + sh.dx; sy = y + sh.dy; dv = (sx < 0 || sx >= CW || sy < 0 || sy >= CH) ? 0 : g[i] * gain - camBg[sy * CW + sx]; }
+      else dv = g[i] * gain - camBg[i];
       cSig[ci] += dv; cAbs[ci] += Math.abs(dv); cBg[ci] += camBg[i];
       cR[ci] += d[i * 4]; cG[ci] += d[i * 4 + 1]; cB[ci] += d[i * 4 + 2];
     }
@@ -936,15 +953,20 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var fl = new Uint8Array(GN), nf = 0;
     if (S.camWarm >= 20) for (ci = 0; ci < GN; ci++) if (cAbs[ci] > thr) { fl[ci] = 1; nf++; }
 
-    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22 || S.phoneMoving);
+    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22 || S.phoneMoving || (sh && (Math.abs(sh.dx) >= 4 || Math.abs(sh.dy) >= 4)));
     S.camShake = shake;
     var rate = (S.camWarm < 30 || shake) ? (shake ? 0.4 : 0.2) : 0.03;
     for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
       i = y * CW + x; ci = (y >> 2) * GX + (x >> 2);
-      camBg[i] += (fl[ci] && !shake ? 0.003 : rate) * (g[i] * gain - camBg[i]);
+      if (sh && !shake) {
+        sx = x + sh.dx; sy = y + sh.dy;
+        if (sx < 0 || sx >= CW || sy < 0 || sy >= CH) camTmp[i] = g[i] * gain;
+        else { var src = camBg[sy * CW + sx]; camTmp[i] = src + (fl[ci] ? 0.05 : 0.25) * (g[i] * gain - src); }
+      } else camBg[i] += (fl[ci] && !shake ? 0.003 : rate) * (g[i] * gain - camBg[i]);
     }
+    if (sh && !shake) camBg.set(camTmp);
     for (ci = 0; ci < GN; ci++) S.camHeat[ci] = Math.min(1, S.camHeat[ci] * 0.82 + ((fl[ci] && !shake) ? 0.6 : 0));
-    hiStage(v, r, fl, gain, thr, shake, rate);
+    hiStage(v, r, fl, gain, thr, shake, rate, sh);
     if (S.camWarm < 20 || shake) { S.camS *= 0.7; S.camArea = 0; S.camObj = 0; S.camTop = ''; TRK = []; if (shake) S.camBoxes = []; return; }
 
     var seen = new Uint8Array(GN), boxes = [], tot = 0, s0, st, c, gx, gy, nb, j;
@@ -1095,7 +1117,19 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   }
 
   /* resolusi adaptif: frame 160x120 untuk menajamkan kandidat dan menumpuk jejak */
-  function hiStage(v, r, fl, gain, thr, shake, rate) {
+  var camTmp = null, hiTmp = new Float32Array(HW * HH);
+  function estShift(g, bg, gain) {
+    var R = 4, best = 1e18, bdx = 0, bdy = 0, dx, dy, x, y, s;
+    for (dy = -R; dy <= R; dy++) for (dx = -R; dx <= R; dx++) {
+      s = 0;
+      for (y = 6; y < CH - 6; y += 2) for (x = 6; x < CW - 6; x += 2) s += Math.abs(g[y * CW + x] * gain - bg[(y + dy) * CW + x + dx]);
+      if (dx === 0 && dy === 0) s *= 0.97;
+      if (s < best) { best = s; bdx = dx; bdy = dy; }
+    }
+    return { dx: bdx, dy: bdy };
+  }
+  function hiStage(v, r, fl, gain, thr, shake, rate, sh) {
+    var hx = sh ? Math.round(sh.dx * 2.5) : 0, hy = sh ? Math.round(sh.dy * 2.5) : 0, sx2, sy2, j;
     hiCx.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, HW, HH);
     var d = hiCx.getImageData(0, 0, HW, HH).data, n = HW * HH, i, x, y, ci, g, lv, row;
     for (i = 0; i < n; i++) {
@@ -1107,10 +1141,17 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       row = ((y / 10) | 0) * GX;
       for (x = 0; x < HW; x++) {
         i = y * HW + x; ci = row + ((x / 10) | 0); g = hiG[i] * gain;
+        if (sh && !shake) {
+          sx2 = x + hx; sy2 = y + hy;
+          if (sx2 < 0 || sx2 >= HW || sy2 < 0 || sy2 >= HH) { hiD[i] = 0; hiTmp[i] = g; }
+          else { j = sy2 * HW + sx2; hiD[i] = Math.abs(g - hiBg[j]); hiTmp[i] = hiBg[j] + (fl[ci] ? 0.05 : 0.25) * (g - hiBg[j]); }
+          continue;
+        }
         hiD[i] = Math.abs(g - hiBg[i]);
         hiBg[i] += (fl[ci] && !shake ? 0.003 : rate) * (g - hiBg[i]);
       }
     }
+    if (sh && !shake) hiBg.set(hiTmp);
     if (LX.on) {
       var a = LX.acc, px = LX.img.data, thH = Math.max(14, thr * 1.5), vv, dd;
       for (i = 0; i < n; i++) {
@@ -1323,7 +1364,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var n = FLK.t.length; if (n < 60) return;
     var span = (FLK.t[n - 1] - FLK.t[0]) / 1000; if (span < 2) return;
     /* gerakan di layar mengubah kecerahan rata-rata, jadi kedip hanya dinilai saat pemandangan tenang */
-    FLK.skip = S.camObj > 0 || S.phoneMoving || performance.now() - S.camBoxT < 2000;
+    FLK.skip = S.camObj > 0 || S.phoneMoving || (HAND.on && (S.mvGyro > 8 || S.mvAcc > 0.4)) || performance.now() - S.camBoxT < 2000;
     if (FLK.skip) { FLK.hits = 0; FLK.on = false; return; }
     var fs = (n - 1) / span, fmax = Math.min(14, fs / 2 - 0.5), mean = 0, i, f, amps = [], best = 0, bf = 0;
     for (i = 0; i < n; i++) mean += FLK.v[i];
@@ -1344,7 +1385,8 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     if (camOn) {
       if (LOCK.on) p.push('Eksposur dan white balance terkunci.');
       else if (LOCK.ok === false) p.push('Kamera ini tidak mendukung kunci eksposur manual.');
-      if (S.phoneMoving) p.push('Ponsel bergerak menurut sensor gerak, analisis kamera ditahan.');
+      if (HAND.on) p.push('Mode genggam: gerakan ponsel dikompensasi, jadi hanya gerakan independen yang dihitung.');
+      if (S.phoneMoving) p.push(HAND.on ? 'Ponsel diputar terlalu cepat, analisis kamera ditahan sebentar.' : 'Ponsel bergerak menurut sensor gerak, analisis kamera ditahan.');
       if (HAS_RVFC && FLK.t.length >= 60 && !FLK.skip) p.push(FLK.on ? 'Kedip lampu terdeteksi sekitar ' + FLK.f.toFixed(1) + ' Hz (hasil aliasing dari lampu 50 atau 60 Hz): cahaya yang berkedip kemungkinan lampu biasa.' : 'Tidak ada kedip lampu terdeteksi.');
     }
     if (LX.on) p.push('Eksposur panjang: gerakan dan cahaya menumpuk sebagai jejak oranye lalu memudar pelan.');
@@ -1353,7 +1395,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     el2.textContent = p.join(' '); el2.hidden = !p.length;
   }
   function camAux(now) {
-    S.phoneMoving = SENS.vib.st === 'on' && now - S.mvT < 500 && (S.mvAcc > 0.25 || S.mvGyro > 12);
+    S.phoneMoving = SENS.vib.st === 'on' && now - S.mvT < 500 && (HAND.on ? S.mvGyro > 60 : (S.mvAcc > 0.25 || S.mvGyro > 12));
     FLK.clock += S.dt;
     if (FLK.clock >= 1) { FLK.clock = 0; flkAnalyze(); infoSync(); }
     vidManage(now);
@@ -1499,7 +1541,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     if (SENS.vib.st === 'on' && S.vibClock >= 0.25) { S.vibClock = 0; vibSpec(); }
 
     var sE = 0, sI = 0, sV = 0, sC = 0, wsum = 0, wtot = 0;
-    var magOn = SENS.mag.st === 'on' && S.magBase != null, vibOn = SENS.vib.st === 'on' && S.spec.length > 0 && !S.vibCap, sndOn = SENS.snd.st === 'on' && S.sndWarm > 30, camOn = SENS.cam.st === 'on' && S.camWarm >= 20;
+    var magOn = SENS.mag.st === 'on' && S.magBase != null, vibOn = SENS.vib.st === 'on' && S.spec.length > 0 && !S.vibCap && !HAND.on, sndOn = SENS.snd.st === 'on' && S.sndWarm > 30, camOn = SENS.cam.st === 'on' && S.camWarm >= 20;
     if (magOn) { sE = clamp((S.magDev * k - 3) / 15, 0, 1); wsum += sE * 0.4; wtot += 0.4; }
     if (vibOn) {
       var ratio = S.vibA19 / Math.max(S.vibFloor, 0.002);
@@ -1584,10 +1626,11 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var vOn = SENS.vib.st === 'on';
     el.vibV.textContent = (vOn && S.spec.length) ? S.vibDom.toFixed(1) : '—';
     el.vibA.textContent = 'amplitudo ' + ((vOn && S.spec.length) ? S.vibAmp.toFixed(3) : '—') + ' m/s²';
-    el.vibHint.textContent = 'Pita 17.5 sampai 20.5 Hz ditandai. Laju sampel: ' + (S.fs ? Math.round(S.fs) + ' Hz' : '—') + (S.vibCap ? '. Terlalu rendah untuk melihat 19 Hz.' : '.');
+    el.vibHint.textContent = 'Pita 17.5 sampai 20.5 Hz ditandai. Laju sampel: ' + (S.fs ? Math.round(S.fs) + ' Hz' : '—') + (S.vibCap ? '. Terlalu rendah untuk melihat 19 Hz.' : '.') + (HAND.on ? ' Mode genggam: skor getaran diabaikan karena tremor tangan terbaca sebagai getaran.' : '');
     ex = null;
     if (vOn) {
       if (!S.spec.length) ex = ['warn', 'MENGUMPULKAN'];
+      else if (HAND.on) ex = ['ok', 'DIABAIKAN'];
       else if (S.vibCap) ex = ['warn', 'LAJU RENDAH'];
       else { var r = S.vibA19 / Math.max(S.vibFloor, 0.002); ex = (r > 8 && S.vibA19 > 0.03) ? ['crit', 'RESONANSI'] : (r > 4 && S.vibA19 > 0.012) ? ['warn', 'MENDEKATI'] : ['ok', 'LATAR']; }
     }
@@ -1607,7 +1650,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     el.camV.textContent = (cOn && S.camWarm >= 20 && !S.camShake) ? S.camArea.toFixed(0) : '—';
     el.camD.textContent = 'kecerahan ' + (cOn ? Math.round(S.camLum) : '—') + ' · ' + (cOn ? S.camObj : 0) + ' objek';
     ex = null;
-    if (cOn) ex = S.camWarm < 20 ? ['warn', 'KALIBRASI'] : S.camShake ? ['warn', 'PONSEL BERGERAK'] : S.camS < 0.15 ? ['ok', 'TENANG'] : S.camS < 0.45 ? ['warn', 'GERAKAN'] : ['crit', 'ANOMALI'];
+    if (cOn) ex = S.camWarm < 20 ? ['warn', 'KALIBRASI'] : S.camShake ? ['warn', HAND.on ? 'TERLALU CEPAT' : 'PONSEL BERGERAK'] : S.camS < 0.15 ? ['ok', 'TENANG'] : S.camS < 0.45 ? ['warn', 'GERAKAN'] : ['crit', 'ANOMALI'];
     sensorChip('cam', el.camChip, ex); sensorChip('cam', el.chCam); why('cam', el.camWhy);
 
     drawTrace(CV.emfCv, S.magH, 0, 20, COL.accent, 3);
@@ -1649,7 +1692,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     if (ALERT.beep) primeBeep();
     el.toggle.disabled = true; el.toggle.textContent = 'Meminta izin…';
     ['mag', 'vib', 'snd', 'cam'].forEach(function (k) { if (SUP[k]) SENS[k].st = 'idle'; });
-    resetData(); emptyLog('Pemindaian dimulai. Diamkan ponsel selama beberapa detik untuk kalibrasi latar.');
+    resetData(); emptyLog(HAND.on ? 'Pemindaian dimulai dengan mode genggam. Arahkan ponsel ke satu area selama beberapa detik untuk kalibrasi latar.' : 'Pemindaian dimulai. Diamkan ponsel selama beberapa detik untuk kalibrasi latar.');
     var pv = startVib(), pm = startMag(), ps = startSnd(), pc = startCam();
     Promise.all([pv, pm, ps, pc]).then(function () {
       el.toggle.disabled = false;
@@ -1752,6 +1795,16 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       if (S.running) addLog('SISTEM', 'Senter ' + (torchOn ? 'menyala' : 'mati') + '. Latar visual dipelajari ulang.', 'ok');
     }).catch(function () { torchOff(); });
   });
+
+  /* posisi ponsel */
+  var posHand = $('posHand'), posStill = $('posStill');
+  HAND.on = loadOpt('hand', true); posHand.checked = HAND.on; posStill.checked = !HAND.on;
+  function posChange() {
+    HAND.on = posHand.checked; saveOpt('hand', HAND.on); camRelearn();
+    if (S.running) addLog('SISTEM', HAND.on ? 'Mode genggam aktif. Latar kamera dipelajari ulang, skor getaran diabaikan.' : 'Mode diam aktif. Latar kamera dipelajari ulang.', 'ok');
+    infoSync();
+  }
+  posHand.addEventListener('change', posChange); posStill.addEventListener('change', posChange);
 
   /* tombol kamera lanjutan */
   function setBtn(btn, label, on) { btn.setAttribute('aria-pressed', on ? 'true' : 'false'); btn.textContent = label + ': ' + (on ? 'aktif' : 'mati'); }
