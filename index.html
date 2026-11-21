@@ -167,6 +167,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
 .evp-item .acts { display: flex; align-items: center; gap: 12px; }
 .evp-item .cap button { min-height: 32px; padding: 2px 8px; font: 500 11px var(--f-mono); }
 .evp-item audio { width: 100%; height: 36px; }
+.evp-item video { width: 100%; max-height: 260px; background: #000; border-radius: 3px; }
 
 @media (prefers-reduced-motion: reduce) { .led[data-on="1"] { animation: none; } .g-fill { transition: none; } }
 </style>
@@ -244,11 +245,14 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
         <p class="cam-ph" id="camPh">Kamera belum aktif. Tekan &quot;Mulai pemindaian&quot; dan izinkan kamera.</p>
       </div>
       <div class="read-row"><p class="read"><span id="camV">—</span><small>% area</small></p><span class="sub-read" id="camD">kecerahan — · 0 objek</span></div>
-      <div class="cam-tools"><button id="camNight" type="button" aria-pressed="false">Mode malam: mati</button><button id="camSls" type="button" aria-pressed="false">Gaya SLS: mati</button><button id="camFlip" type="button" disabled>Balik kamera</button><button id="camTorch" type="button" aria-pressed="false" disabled>Senter: mati</button></div>
+      <div class="cam-tools"><button id="camNight" type="button" aria-pressed="false">Mode malam: mati</button><button id="camSls" type="button" aria-pressed="false">Gaya SLS: mati</button><button id="camFlip" type="button" disabled>Balik kamera</button><button id="camTorch" type="button" aria-pressed="false" disabled>Senter: mati</button><button id="camLock" type="button" aria-pressed="false" disabled>Kunci eksposur: mati</button><button id="camLx" type="button" aria-pressed="false">Eksposur panjang: mati</button><button id="camHum" type="button" aria-pressed="false">Filter manusia: mati</button><button id="camEvid" type="button" aria-pressed="false">Bukti video: mati</button></div>
+      <p class="hint" id="camInfo" hidden></p>
       <p class="hint" id="slsHint" hidden>Gaya SLS hanya tampilan. Ponsel tidak punya sensor kedalaman inframerah, jadi titik-titik adalah hiasan dan kerangka digambar dari kotak gerak yang berbentuk tinggi, bukan pelacakan sendi sungguhan. Benda tegak seperti tirai atau kursi juga bisa tergambar sebagai sosok.</p>
       <p class="why" id="camWhy" hidden></p>
       <div class="lbl">Tangkapan anomali</div>
       <div class="gal" id="gal" aria-live="polite"><p class="gal-empty" id="galEmpty">Belum ada tangkapan. Gambar otomatis tersimpan saat kamera mendeteksi anomali.</p></div>
+      <div class="lbl">Bukti video</div>
+      <div class="evp" id="vidList" aria-live="polite"><p class="gal-empty" id="vidEmpty">Belum ada klip. Aktifkan "Bukti video" untuk merekam bergulir di latar. Saat anomali muncul, klip menyimpan sekitar 4 sampai 8 detik sebelum dan 3 detik sesudahnya. Klip hanya ada di halaman ini dan hilang saat pemindaian baru dimulai.</p></div>
       <p class="hint">Kamera membandingkan tiap frame dengan latar yang dipelajari. Kotak kuning atau merah menandai area yang berubah, titik terang di ruang gelap ditandai &quot;CAHAYA&quot;. Debu atau serangga dekat lensa, bayangan, dan perubahan eksposur otomatis sering terbaca sebagai anomali. Gambar tidak dikirim ke mana pun.</p>
     </article>
     <article class="panel mod wide">
@@ -331,6 +335,10 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       <summary>Radar, EVP, dan gaya SLS</summary>
       <p>Radar menggambar ulang data sensor: titik dari kotak gerak kamera dan cincin dari skor EMF, suara, dan getaran. Rekaman EVP otomatis menyimpan klip pendek dari mikrofon saat energi pita suara naik, supaya bisa didengar ulang dengan telinga, bukan dengan angka. Kamera SLS asli memakai proyektor inframerah dan sensor kedalaman, lalu perangkat lunak menggambar kerangka pada sosok yang dikira manusia. Penelitian skeptis menunjukkan kerangka itu muncul juga pada kursi, tanaman, dan tirai, dan &quot;menari&quot; saat derau tinggi. Gaya SLS di sini hanya meniru tampilannya dari gerakan yang terlihat kamera biasa.</p>
     </details>
+    <details>
+      <summary>Pelacak, kunci eksposur, kedip lampu, dan penyaring salah baca</summary>
+      <p>Tiap area yang berubah diberi ID dan dilacak antar frame, sehingga tampak kecepatan, arah (panah), dan jejaknya. Objek besar, cepat, dan buram di dekat lensa diberi label &quot;DEKAT?&quot; dan skornya diturunkan, karena biasanya serangga atau debu. Kandidat diukur ulang pada resolusi 160×120 untuk kotak yang lebih rapat dan ukuran ketajaman tepi. Kunci eksposur menahan kamera dari menyesuaikan kecerahan sendiri (hanya di kamera yang mendukung, umumnya Chrome Android). Sensor gerak menahan analisis kamera saat ponsel digeser. Kedip lampu dicari dari fluktuasi kecerahan antar frame, dan titik cahaya keunguan diberi tanda kemungkinan sumber inframerah seperti CCTV atau remote. Filter manusia memuat model deteksi objek dari CDN hanya bila diaktifkan, lalu menandai orang sungguhan supaya tidak dihitung sebagai anomali. Semua ini mengurangi salah baca, bukan membuktikan apa pun.</p>
+    </details>
   </section>
 
   <footer>GHOST DETECTOR PRO · SENSOR PERANGKAT<br>Developed by iqbalmantam</footer>
@@ -370,7 +378,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     spec: [], fs: 0, vibDom: 0, vibAmp: 0, vibA19: 0, vibRms: 0, vibCap: false, vibLast: 0, vibClock: 0, vibFloor: 0, lastTick: 0, dt: DT,
     dB: null, voc: 0, sndLast: 0, sndWarm: 0,
     rows: [], rowClock: 0,
-    camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false, night: false, sls: false, sE: 0, sI: 0, sV: 0
+    camWarm: 0, camArea: 0, camLum: 0, camObj: 0, camS: 0, camShake: false, camBoxes: [], camBoxT: 0, camHeat: new Float32Array(192), camMirror: false, night: false, sls: false, sE: 0, sI: 0, sV: 0, phoneMoving: false, mvAcc: 0, mvGyro: 0, mvT: 0, persons: [], personT: 0, camTop: ''
   };
   var SENS = { mag: { st: 'idle', obj: null }, vib: { st: 'idle' }, snd: { st: 'idle', stream: null, ac: null, an: null }, cam: { st: 'idle', stream: null, facing: 'environment' } };
   var timer = null, wake = null;
@@ -380,6 +388,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   var EVP_EMPTY = 'Belum ada klip. Rekaman otomatis dimulai saat energi di pita suara naik dan berhenti setelah tenang. Klip hanya ada di halaman ini, tidak diunggah, dan hilang saat pemindaian baru dimulai atau halaman ditutup. Pakai Simpan untuk menyimpannya.';
   var BL = [], blT = 0;
   var btnSls = $('camSls'), btnTorch = $('camTorch'), torchOn = false;
+  var btnLock = $('camLock'), btnLx = $('camLx'), btnHum = $('camHum'), btnVid = $('camEvid');
 
   var el = {
     led: $('led'), state: $('stateText'), clock: $('clock'), gauge: $('gauge'), arc: $('gArc'), num: $('gNum'),
@@ -488,6 +497,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   function addBlips() {
     var now = performance.now();
     S.camBoxes.forEach(function (b) {
+      if (b.person) return;
       var cxn = (b.x0 + b.x1) / 2, cyn = (b.y0 + b.y1) / 2, hit = null, i;
       if (S.camMirror) cxn = 1 - cxn;
       var ang = -Math.PI / 2 + (cxn - 0.5) * 2 * RFOV, rr = clamp(0.2 + 0.75 * (1 - cyn), 0.15, 0.95);
@@ -533,6 +543,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       x.globalAlpha = al * 0.5; x.strokeStyle = b.c; x.lineWidth = 1 * DPR;
       x.beginPath(); x.arc(bx, by, (5 + b.s * 4 + age * 3) * DPR, 0, 6.2832); x.stroke();
     }
+    drawRadarTrails(x, cx, cy, R);
     x.globalAlpha = 1; x.fillStyle = COL.fg || '#dbe6e3';
     x.beginPath(); x.arc(cx, cy, 2.5 * DPR, 0, 6.2832); x.fill();
   }
@@ -642,7 +653,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
   function drawSkel(x, w, h, boxes, sc, alpha) {
     x.save(); x.strokeStyle = COL.ok; x.fillStyle = COL.ok; x.lineWidth = 2 * sc; x.lineCap = 'round'; x.globalAlpha = alpha;
     boxes.forEach(function (b) {
-      if (b.type !== 'GERAK' || b.size < 6) return;
+      if (b.type !== 'GERAK' || b.size < 6 || b.cls === 'DEKAT?' || b.cls === 'KEDIP') return;
       var bx0 = S.camMirror ? 1 - b.x1 : b.x0, bx1 = S.camMirror ? 1 - b.x0 : b.x1;
       var a = bx0 * w, e = bx1 * w, c = b.y0 * h, f = b.y1 * h, bw = e - a, bh = f - c;
       if (bh < bw * 1.3) return;
@@ -754,6 +765,10 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var t = performance.now(), m = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
     vLP = vLP == null ? m : vLP + 0.05 * (m - vLP);
     VB.push([t, m - vLP]); if (VB.length > 256) VB.shift();
+    var rr = e.rotationRate;
+    S.mvAcc = S.mvAcc * 0.8 + 0.2 * Math.abs(m - vLP);
+    S.mvGyro = S.mvGyro * 0.7 + 0.3 * (rr ? Math.hypot(rr.alpha || 0, rr.beta || 0, rr.gamma || 0) : 0);
+    S.mvT = t;
     S.vibLast = t;
     if (SENS.vib.st === 'wait' || SENS.vib.st === 'off') setState('vib', 'on');
   }
@@ -877,7 +892,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       vid.className = S.camMirror ? 'mirror' : '';
       vid.muted = true; vid.setAttribute('playsinline', ''); vid.srcObject = stream;
       if (tr) tr.addEventListener('ended', function () { setState('cam', 'off'); });
-      return vid.play().catch(function () {}).then(function () { camBg = null; S.camWarm = 0; S.camS = 0; setState('cam', 'on'); torchInit(); });
+      return vid.play().catch(function () {}).then(function () { camBg = null; S.camWarm = 0; S.camS = 0; setState('cam', 'on'); torchInit(); lockInit(); camFrameStart(); });
     }).catch(function (err) {
       setState('cam', err && (err.name === 'NotAllowedError' || err.name === 'SecurityError') ? 'denied' : 'off');
     });
@@ -886,6 +901,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     try { if (SENS.cam.stream) SENS.cam.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
     SENS.cam.stream = null; camBg = null; camPrev = null;
     try { $('camVid').srcObject = null; } catch (e) {}
+    lockReset(); camGen++; FLK.t = []; FLK.v = []; FLK.on = false; FLK.hits = 0; TRK = [];
     torchOff();
     S.camBoxes = []; S.camHeat.fill(0);
   }
@@ -908,18 +924,19 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     S.camWarm++;
     var mb = 0; for (i = 0; i < n; i++) mb += camBg[i]; mb /= n;
     var gain = clamp(mb / Math.max(S.camLum, 1), 0.7, 1.4);
-    var cAbs = new Float32Array(GN), cSig = new Float32Array(GN), cBg = new Float32Array(GN), x, y, ci, dv;
+    var cAbs = new Float32Array(GN), cSig = new Float32Array(GN), cBg = new Float32Array(GN), cR = new Float32Array(GN), cG = new Float32Array(GN), cB = new Float32Array(GN), x, y, ci, dv;
     for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
       i = y * CW + x; ci = (y >> 2) * GX + (x >> 2); dv = g[i] * gain - camBg[i];
       cSig[ci] += dv; cAbs[ci] += Math.abs(dv); cBg[ci] += camBg[i];
+      cR[ci] += d[i * 4]; cG[ci] += d[i * 4 + 1]; cB[ci] += d[i * 4 + 2];
     }
-    for (ci = 0; ci < GN; ci++) { cAbs[ci] /= 16; cSig[ci] /= 16; cBg[ci] /= 16; }
+    for (ci = 0; ci < GN; ci++) { cAbs[ci] /= 16; cSig[ci] /= 16; cBg[ci] /= 16; cR[ci] /= 16; cG[ci] /= 16; cB[ci] /= 16; }
     var nz = Array.prototype.slice.call(cAbs).sort(function (a, b) { return a - b; })[GN >> 1];
     var thr = Math.max(5, (8 + 3 * nz) * (1.5 - sens * 0.1) * (S.night ? 0.85 : 1));
     var fl = new Uint8Array(GN), nf = 0;
     if (S.camWarm >= 20) for (ci = 0; ci < GN; ci++) if (cAbs[ci] > thr) { fl[ci] = 1; nf++; }
 
-    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22);
+    var shake = S.camWarm >= 20 && (nf / GN > 0.55 || nz > 22 || S.phoneMoving);
     S.camShake = shake;
     var rate = (S.camWarm < 30 || shake) ? (shake ? 0.4 : 0.2) : 0.03;
     for (y = 0; y < CH; y++) for (x = 0; x < CW; x++) {
@@ -927,32 +944,44 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       camBg[i] += (fl[ci] && !shake ? 0.003 : rate) * (g[i] * gain - camBg[i]);
     }
     for (ci = 0; ci < GN; ci++) S.camHeat[ci] = Math.min(1, S.camHeat[ci] * 0.82 + ((fl[ci] && !shake) ? 0.6 : 0));
-    if (S.camWarm < 20 || shake) { S.camS *= 0.7; S.camArea = 0; S.camObj = 0; if (shake) S.camBoxes = []; return; }
+    hiStage(v, r, fl, gain, thr, shake, rate);
+    if (S.camWarm < 20 || shake) { S.camS *= 0.7; S.camArea = 0; S.camObj = 0; S.camTop = ''; TRK = []; if (shake) S.camBoxes = []; return; }
 
     var seen = new Uint8Array(GN), boxes = [], tot = 0, s0, st, c, gx, gy, nb, j;
     for (s0 = 0; s0 < GN; s0++) {
       if (!fl[s0] || seen[s0]) continue;
       st = [s0]; seen[s0] = 1;
-      var size = 0, mnx = 99, mny = 99, mxx = -1, mxy = -1, aS = 0, sS = 0, bS = 0;
+      var size = 0, mnx = 99, mny = 99, mxx = -1, mxy = -1, aS = 0, sS = 0, bS = 0, cr = 0, cg = 0, cb = 0;
       while (st.length) {
         c = st.pop(); gx = c % GX; gy = (c / GX) | 0; size++;
         if (gx < mnx) mnx = gx; if (gx > mxx) mxx = gx; if (gy < mny) mny = gy; if (gy > mxy) mxy = gy;
-        aS += cAbs[c]; sS += cSig[c]; bS += cBg[c];
+        aS += cAbs[c]; sS += cSig[c]; bS += cBg[c]; cr += cR[c]; cg += cG[c]; cb += cB[c];
         nb = [gx > 0 ? c - 1 : -1, gx < GX - 1 ? c + 1 : -1, gy > 0 ? c - GX : -1, gy < GY - 1 ? c + GX : -1];
         for (j = 0; j < 4; j++) if (nb[j] >= 0 && fl[nb[j]] && !seen[nb[j]]) { seen[nb[j]] = 1; st.push(nb[j]); }
       }
       var mAbs = aS / size, mSig = sS / size, mBg = bS / size;
       if (size < 2 && mAbs < thr * 2.2) continue;
       tot += size;
-      boxes.push({ x0: mnx / GX, x1: (mxx + 1) / GX, y0: mny / GY, y1: (mxy + 1) / GY, type: (mSig > 0 && mBg < (S.night ? 140 : 90)) ? 'CAHAYA' : 'GERAK', size: size, delta: Math.round(mAbs) });
+      var mR = cr / size, mG = cg / size, mB = cb / size, isL = mSig > 0 && mBg < (S.night ? 140 : 90);
+      boxes.push({ x0: mnx / GX, x1: (mxx + 1) / GX, y0: mny / GY, y1: (mxy + 1) / GY, type: isL ? 'CAHAYA' : 'GERAK', size: size, delta: Math.round(mAbs), sig: mSig,
+        ir: isL && (mR + mB) / 2 - mG > 18 && (mR + mG + mB) / 3 > 70 });
     }
+    refineBoxes(boxes, thr); trackBoxes(boxes); markPersons(boxes);
+    tot = 0; boxes.forEach(function (b) { tot += b.size * b.w; });
     var f = tot / GN, areaS = clamp((f * 100 * k - 2) / 18, 0, 1), orbS = 0;
-    boxes.forEach(function (b) { if (b.type === 'CAHAYA' && b.size <= 14) orbS = Math.max(orbS, clamp((b.delta - 15) / 50, 0, 1) * 0.85); });
+    boxes.forEach(function (b) { if (b.type === 'CAHAYA' && b.size <= 14) orbS = Math.max(orbS, clamp((b.delta - 15) / 50, 0, 1) * 0.85 * b.w); });
     var raw = Math.max(areaS, orbS);
     S.camS = raw > S.camS ? raw : S.camS * 0.85 + raw * 0.15;
     var sev = S.camS > 0.7 ? 'crit' : 'warn';
-    boxes.forEach(function (b) { b.sev = sev; b.label = b.type === 'CAHAYA' ? 'CAHAYA +' + b.delta : 'GERAK ' + Math.max(1, Math.round(b.size / GN * 100)) + '%'; });
-    S.camArea = f * 100; S.camObj = boxes.length;
+    var top = null;
+    boxes.forEach(function (b) {
+      b.sev = b.person ? 'ok' : sev;
+      var base = b.person ? 'ORANG' : b.type === 'CAHAYA' ? (b.ir ? 'CAHAYA IR?' : 'CAHAYA +' + b.delta) : 'GERAK ' + Math.max(1, Math.round(b.size / GN * 100)) + '%';
+      b.label = base + (b.tid ? ' #' + b.tid : '') + (b.cls && !b.person ? ' ' + b.cls : '');
+      if (!b.person && (!top || b.size * b.w > top.size * top.w)) top = b;
+    });
+    S.camTop = top ? 'objek #' + top.tid + (top.cls ? ' ' + top.cls : '') + (top.ir ? ', mungkin sumber inframerah (CCTV atau remote)' : '') : '';
+    S.camArea = f * 100; S.camObj = boxes.filter(function (b) { return !b.person; }).length;
     if (boxes.length) { S.camBoxes = boxes; S.camBoxT = performance.now(); }
   }
 
@@ -968,7 +997,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     boxes.forEach(function (b) {
       var bx0 = S.camMirror ? 1 - b.x1 : b.x0, bx1 = S.camMirror ? 1 - b.x0 : b.x1;
       var a = Math.max(0, bx0 * w - 3 * sc), c = Math.max(0, b.y0 * h - 3 * sc), e = Math.min(w, bx1 * w + 3 * sc), f = Math.min(h, b.y1 * h + 3 * sc);
-      var col = b.sev === 'crit' ? COL.crit : COL.warn;
+      var col = b.sev === 'crit' ? COL.crit : b.sev === 'ok' ? COL.ok : COL.warn;
       x.globalAlpha = alpha * 0.14; x.fillStyle = col; x.fillRect(a, c, e - a, f - c);
       x.globalAlpha = alpha; x.strokeStyle = col; x.lineWidth = (1.5 + pulse) * sc;
       var L = Math.min(14 * sc, (e - a) / 2, (f - c) / 2);
@@ -1013,6 +1042,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     var c = CV.camOv, x = c.ctx, w = c.w, h = c.h, now = performance.now(), i;
     x.clearRect(0, 0, w, h);
     if (SENS.cam.st !== 'on') return;
+    if (LX.on) drawLx(x, w, h);
     if (S.sls) drawGrid(x, w, h);
     drawMark(x, w, h, DPR);
     var cw = w / GX, ch = h / GY, hot = S.camS > 0.45 ? COL.crit : COL.warn;
@@ -1027,6 +1057,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       drawBoxes(x, w, h, S.camBoxes, DPR, 1 - age / 700, RM ? 0.5 : 0.6 + 0.6 * Math.sin(now / 120));
       if (S.sls) drawSkel(x, w, h, S.camBoxes, DPR, 1 - age / 700);
     }
+    drawTracks(x, w, h, DPR); drawPersons(x, w, h, DPR);
     if (!RM && S.camWarm >= 20) { x.globalAlpha = 0.1; x.fillStyle = COL.ok; x.fillRect(0, (now / 18) % h, w, 2 * DPR); x.globalAlpha = 1; }
     if (S.camS > 0.35 && !S.camShake) {
       var pu = RM ? 1 : 0.5 + 0.5 * Math.sin(now / 110), ac = S.camS > 0.7 ? COL.crit : COL.warn;
@@ -1038,13 +1069,402 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     }
   }
 
+  /* ===== kamera lanjutan ===== */
+  var HW = 160, HH = 120, hiCv = document.createElement('canvas');
+  hiCv.width = HW; hiCv.height = HH;
+  var hiCx = hiCv.getContext('2d', { willReadFrequently: true });
+  var hiBg = null, hiG = new Float32Array(HW * HH), hiD = new Float32Array(HW * HH);
+  var LX = { on: false, acc: new Float32Array(HW * HH), cv: document.createElement('canvas'), cx: null, img: null };
+  LX.cv.width = HW; LX.cv.height = HH; LX.cx = LX.cv.getContext('2d'); LX.img = LX.cx.createImageData(HW, HH);
+  var TRK = [], trkId = 0, trkT = 0;
+  var HUM = { on: false, model: null, loading: null, busy: false, last: 0, status: '' };
+  var humCv = document.createElement('canvas'), humCx = humCv.getContext('2d');
+  var TFJS_URL = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
+  var COCO_URL = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js';
+  var LOCK = { on: false, ok: null };
+  var FLK = { t: [], v: [], f: 0, rel: 0, hits: 0, on: false, clock: 0, skip: true };
+  var flkCv = document.createElement('canvas'); flkCv.width = 16; flkCv.height = 12;
+  var flkCx = flkCv.getContext('2d', { willReadFrequently: true });
+  var HAS_RVFC = typeof HTMLVideoElement !== 'undefined' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+  var camGen = 0, camFresh = false;
+  var VID = { on: false, cv: null, cx: null, stream: null, slots: [null, null], lastDraw: 0, w: 0, h: 0, ar: 0 };
+  var VID_EMPTY = 'Belum ada klip. Aktifkan "Bukti video" untuk merekam bergulir di latar. Saat anomali muncul, klip menyimpan sekitar 4 sampai 8 detik sebelum dan 3 detik sesudahnya. Klip hanya ada di halaman ini dan hilang saat pemindaian baru dimulai.';
+
+  function camRelearn() {
+    camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0); TR.cam = mkTr(); TRK = [];
+  }
+
+  /* resolusi adaptif: frame 160x120 untuk menajamkan kandidat dan menumpuk jejak */
+  function hiStage(v, r, fl, gain, thr, shake, rate) {
+    hiCx.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, HW, HH);
+    var d = hiCx.getImageData(0, 0, HW, HH).data, n = HW * HH, i, x, y, ci, g, lv, row;
+    for (i = 0; i < n; i++) {
+      lv = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+      hiG[i] = S.night ? Math.min(255, lv * NIGHT_GAIN) : lv;
+    }
+    if (!hiBg || S.camWarm === 2) { hiBg = new Float32Array(hiG); hiD.fill(0); LX.acc.fill(0); return; }
+    for (y = 0; y < HH; y++) {
+      row = ((y / 10) | 0) * GX;
+      for (x = 0; x < HW; x++) {
+        i = y * HW + x; ci = row + ((x / 10) | 0); g = hiG[i] * gain;
+        hiD[i] = Math.abs(g - hiBg[i]);
+        hiBg[i] += (fl[ci] && !shake ? 0.003 : rate) * (g - hiBg[i]);
+      }
+    }
+    if (LX.on) {
+      var a = LX.acc, px = LX.img.data, thH = Math.max(14, thr * 1.5), vv, dd;
+      for (i = 0; i < n; i++) {
+        vv = a[i] * 0.994; dd = hiD[i] - thH;
+        if (!shake && dd > 0) vv = Math.max(vv, dd * 4);
+        a[i] = vv;
+        px[i * 4] = 255; px[i * 4 + 1] = 178; px[i * 4 + 2] = 62; px[i * 4 + 3] = Math.min(230, vv * 3);
+      }
+      LX.cx.putImageData(LX.img, 0, 0);
+    }
+  }
+  function refineBoxes(boxes, thr) {
+    var thH = Math.max(14, thr * 1.5);
+    boxes.forEach(function (b) {
+      var x0 = Math.max(0, Math.floor(b.x0 * HW)), x1 = Math.min(HW - 1, Math.ceil(b.x1 * HW) - 1);
+      var y0 = Math.max(0, Math.floor(b.y0 * HH)), y1 = Math.min(HH - 1, Math.ceil(b.y1 * HH) - 1);
+      var cnt = 0, mnx = 999, mny = 999, mxx = -1, mxy = -1, mxD = 0, x, y, i, dv;
+      for (y = y0; y <= y1; y++) for (x = x0; x <= x1; x++) {
+        dv = hiD[y * HW + x];
+        if (dv > thH) { cnt++; if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; if (dv > mxD) mxD = dv; }
+      }
+      b.px = cnt; b.sharp = null; b.weak = false;
+      if (cnt < 4) { b.weak = true; return; }
+      b.x0 = mnx / HW; b.x1 = (mxx + 1) / HW; b.y0 = mny / HH; b.y1 = (mxy + 1) / HH;
+      var sg = 0, sg2 = 0, gr;
+      for (y = Math.max(1, mny); y <= Math.min(HH - 2, mxy); y++) for (x = Math.max(1, mnx); x <= Math.min(HW - 2, mxx); x++) {
+        i = y * HW + x; gr = Math.abs(hiD[i + 1] - hiD[i - 1]) + Math.abs(hiD[i + HW] - hiD[i - HW]);
+        sg += gr; sg2 += gr * gr;
+      }
+      b.sharp = sg > 0 ? sg2 / (sg * (mxD + 1)) : null;
+    });
+  }
+
+  /* pelacak objek: ID, jejak, kecepatan, arah, dan klasifikasi */
+  function trackBoxes(boxes) {
+    var now = performance.now(), dt = clamp((now - trkT) / 1000, 0.03, 0.6), t = S.t, taken = {}, byId = {}, i;
+    trkT = now;
+    boxes.forEach(function (b) { b.cx = (b.x0 + b.x1) / 2; b.cy = (b.y0 + b.y1) / 2; b.area = (b.x1 - b.x0) * (b.y1 - b.y0); b.w = b.weak ? 0.5 : 1; });
+    boxes.slice().sort(function (a, c) { return c.size - a.size; }).forEach(function (b) {
+      var best = null, bd = 0.2, tr, dd;
+      for (i = 0; i < TRK.length; i++) {
+        tr = TRK[i]; if (taken[tr.id]) continue;
+        dd = Math.hypot(b.cx - (tr.cx + tr.vx * dt), b.cy - (tr.cy + tr.vy * dt));
+        if (dd < bd) { bd = dd; best = tr; }
+      }
+      if (best) {
+        best.vx = 0.6 * best.vx + 0.4 * (b.cx - best.cx) / dt; best.vy = 0.6 * best.vy + 0.4 * (b.cy - best.cy) / dt;
+        best.cx = b.cx; best.cy = b.cy; best.hits++; best.miss = 0;
+      } else {
+        best = { id: ++trkId, born: t, cx: b.cx, cy: b.cy, vx: 0, vy: 0, hits: 1, miss: 0, path: [], areas: [], sigs: [], sp: 0, cls: '', box: null };
+        TRK.push(best);
+      }
+      taken[best.id] = 1; byId[best.id] = best; b.tid = best.id; best.box = b;
+      best.path.push([b.cx, b.cy, t]); if (best.path.length > 24) best.path.shift();
+      best.areas.push([t, b.area]); if (best.areas.length > 20) best.areas.shift();
+      best.sigs.push(b.sig); if (best.sigs.length > 12) best.sigs.shift();
+    });
+    TRK.forEach(function (tr) { if (!taken[tr.id]) tr.miss++; });
+    TRK = TRK.filter(function (tr) { return tr.miss <= 6; });
+    boxes.forEach(function (b) {
+      var tr = byId[b.tid], life = t - tr.born, sp = Math.hypot(tr.vx, tr.vy), ref = null, k, flips = 0, growth = 1;
+      for (k = 0; k < tr.areas.length; k++) { var ag = t - tr.areas[k][0]; if (ag >= 0.7 && ag <= 1.6) { ref = tr.areas[k]; break; } }
+      if (ref && ref[1] > 0) growth = b.area / ref[1];
+      for (k = 1; k < tr.sigs.length; k++) if ((tr.sigs[k] > 0) !== (tr.sigs[k - 1] > 0)) flips++;
+      var near = (b.sharp != null && b.sharp < 0.22 && b.px > 50 && (sp > 0.25 || life < 2)) || (b.area > 0.1 && sp > 0.8), cls = '';
+      if (near) cls = 'DEKAT?';
+      else if (flips >= 4 && sp < 0.06) cls = 'KEDIP';
+      else if (sp > 0.12) cls = 'MELINTAS';
+      else if (life > 1 && growth > 1.5) cls = 'MENDEKAT';
+      else if (life > 1 && growth < 0.67) cls = 'MENJAUH';
+      else if (life > 1) cls = 'DIAM';
+      tr.sp = sp; tr.cls = cls; b.cls = cls; b.sp = sp; b.life = life;
+      b.w = b.w * (near ? 0.35 : life < 0.5 ? 0.6 : 1);
+    });
+  }
+  function markPersons(boxes) {
+    if (!HUM.on || !S.persons.length || performance.now() - S.personT > 2000) return;
+    boxes.forEach(function (b) {
+      var ba = Math.max(1e-6, (b.x1 - b.x0) * (b.y1 - b.y0)), hit = false;
+      S.persons.forEach(function (p) {
+        var ix = Math.max(0, Math.min(b.x1, p.x1 + 0.03) - Math.max(b.x0, p.x0 - 0.03));
+        var iy = Math.max(0, Math.min(b.y1, p.y1 + 0.03) - Math.max(b.y0, p.y0 - 0.03));
+        if (ix * iy / ba > 0.5) hit = true;
+      });
+      if (hit) { b.person = true; b.cls = 'ORANG'; b.w = 0; }
+    });
+  }
+  function drawTracks(x, w, h, sc) {
+    var t = S.t;
+    x.save(); x.lineWidth = 1.5 * sc; x.strokeStyle = COL.accent; x.fillStyle = COL.accent;
+    TRK.forEach(function (tr) {
+      if (tr.miss > 2 || tr.path.length < 2 || (tr.box && tr.box.person)) return;
+      var i, a, b, age;
+      for (i = 1; i < tr.path.length; i++) {
+        a = tr.path[i - 1]; b = tr.path[i]; age = t - b[2]; if (age > 3) continue;
+        x.globalAlpha = Math.max(0, 0.7 - age / 4);
+        x.beginPath(); x.moveTo((S.camMirror ? 1 - a[0] : a[0]) * w, a[1] * h); x.lineTo((S.camMirror ? 1 - b[0] : b[0]) * w, b[1] * h); x.stroke();
+      }
+      if (tr.sp > 0.12 && tr.miss === 0) {
+        var sx = (S.camMirror ? 1 - tr.cx : tr.cx) * w, sy = tr.cy * h, len = Math.min(0.12, tr.sp * 0.4);
+        var ux = (S.camMirror ? -tr.vx : tr.vx) / tr.sp, uy = tr.vy / tr.sp, ex = sx + ux * len * w, ey = sy + uy * len * h, an = Math.atan2(ey - sy, ex - sx), hl = 7 * sc;
+        x.globalAlpha = 0.9; x.beginPath(); x.moveTo(sx, sy); x.lineTo(ex, ey);
+        x.moveTo(ex, ey); x.lineTo(ex - hl * Math.cos(an - 0.5), ey - hl * Math.sin(an - 0.5));
+        x.moveTo(ex, ey); x.lineTo(ex - hl * Math.cos(an + 0.5), ey - hl * Math.sin(an + 0.5)); x.stroke();
+      }
+    });
+    x.restore();
+  }
+  function drawRadarTrails(x, cx, cy, R) {
+    var t = S.t;
+    x.save(); x.lineWidth = 1 * DPR; x.strokeStyle = COL.accent; x.globalAlpha = 0.5;
+    TRK.forEach(function (tr) {
+      if (tr.miss > 2 || tr.path.length < 2 || (tr.box && tr.box.person)) return;
+      var started = false;
+      x.beginPath();
+      tr.path.forEach(function (p) {
+        if (t - p[2] > 3) return;
+        var cxn = S.camMirror ? 1 - p[0] : p[0], ang = -Math.PI / 2 + (cxn - 0.5) * 2 * RFOV, rr = clamp(0.2 + 0.75 * (1 - p[1]), 0.15, 0.95);
+        var px = cx + Math.cos(ang) * rr * R, py = cy + Math.sin(ang) * rr * R;
+        if (started) x.lineTo(px, py); else { x.moveTo(px, py); started = true; }
+      });
+      x.stroke();
+    });
+    x.restore();
+  }
+  function drawPersons(x, w, h, sc) {
+    if (!HUM.on || performance.now() - S.personT > 1500) return;
+    x.save(); x.strokeStyle = COL.ok; x.fillStyle = COL.ok; x.lineWidth = 1.5 * sc; x.setLineDash([5 * sc, 4 * sc]); x.globalAlpha = 0.9;
+    x.font = '500 ' + Math.round(10 * sc) + 'px "IBM Plex Mono", ui-monospace, monospace'; x.textBaseline = 'top'; x.textAlign = 'left';
+    S.persons.forEach(function (p) {
+      var x0 = S.camMirror ? 1 - p.x1 : p.x0, x1 = S.camMirror ? 1 - p.x0 : p.x1;
+      x.strokeRect(x0 * w, p.y0 * h, (x1 - x0) * w, (p.y1 - p.y0) * h);
+      x.fillText('ORANG ' + Math.round(p.s * 100) + '%', x0 * w + 4 * sc, p.y0 * h + 4 * sc);
+    });
+    x.restore();
+  }
+  function drawLx(x, w, h) {
+    x.save(); if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
+    x.imageSmoothingEnabled = true; x.globalAlpha = 0.9; x.drawImage(LX.cv, 0, 0, w, h); x.restore();
+  }
+
+  /* filter manusia: model deteksi objek dimuat dari CDN hanya saat diaktifkan */
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('gagal memuat ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function humLoad() {
+    if (HUM.model) return Promise.resolve();
+    if (HUM.loading) return HUM.loading;
+    HUM.loading = (window.cocoSsd ? Promise.resolve() : loadScript(TFJS_URL).then(function () { return loadScript(COCO_URL); })).then(function () {
+      return window.cocoSsd.load({ base: 'lite_mobilenet_v2' });
+    }).then(function (m) { HUM.model = m; HUM.loading = null; }).catch(function (e) { HUM.loading = null; throw e; });
+    return HUM.loading;
+  }
+  function humStep() {
+    if (!HUM.on || !HUM.model || HUM.busy) return;
+    var now = performance.now(); if (now - HUM.last < 700) return;
+    var v = $('camVid'); if (!v.videoWidth || v.readyState < 2) return;
+    HUM.last = now;
+    var ar = camAR(), w = 320, h = Math.round(w / ar), r = cropRect(v, ar);
+    if (humCv.width !== w || humCv.height !== h) { humCv.width = w; humCv.height = h; }
+    humCx.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h);
+    HUM.busy = true;
+    HUM.model.detect(humCv).then(function (res) {
+      HUM.busy = false;
+      S.persons = res.filter(function (o) { return o.class === 'person' && o.score > 0.5; }).map(function (o) {
+        return { x0: o.bbox[0] / w, y0: o.bbox[1] / h, x1: (o.bbox[0] + o.bbox[2]) / w, y1: (o.bbox[1] + o.bbox[3]) / h, s: o.score };
+      });
+      S.personT = performance.now();
+    }).catch(function () { HUM.busy = false; });
+  }
+
+  /* kunci eksposur dan white balance */
+  function camTrack() { return SENS.cam.stream && SENS.cam.stream.getVideoTracks()[0]; }
+  function lockUi() {
+    btnLock.setAttribute('aria-pressed', LOCK.on ? 'true' : 'false');
+    btnLock.textContent = 'Kunci eksposur: ' + (LOCK.on ? 'aktif' : 'mati');
+  }
+  function lockInit() {
+    var tr = camTrack(), ok = false;
+    try {
+      var c = tr && tr.getCapabilities ? tr.getCapabilities() : null;
+      ok = !!(c && c.exposureMode && c.whiteBalanceMode && c.exposureMode.indexOf('manual') >= 0 && c.whiteBalanceMode.indexOf('manual') >= 0);
+    } catch (e) {}
+    LOCK.on = false; LOCK.ok = ok; btnLock.disabled = !ok; lockUi();
+  }
+  function lockReset() { LOCK.on = false; LOCK.ok = null; btnLock.disabled = true; lockUi(); }
+
+  /* frame-sync dan kedip lampu */
+  function camFrameStart() {
+    if (!HAS_RVFC) return;
+    var v = $('camVid'), gen = ++camGen;
+    var cb = function (now, meta) {
+      if (gen !== camGen) return;
+      camFresh = true;
+      try {
+        flkCx.drawImage(v, 0, 0, 16, 12);
+        var d = flkCx.getImageData(0, 0, 16, 12).data, s = 0, i;
+        for (i = 0; i < 192; i++) s += 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+        FLK.t.push(meta && meta.captureTime ? meta.captureTime : now); FLK.v.push(s / 192);
+        if (FLK.t.length > 150) { FLK.t.shift(); FLK.v.shift(); }
+      } catch (e) {}
+      v.requestVideoFrameCallback(cb);
+    };
+    v.requestVideoFrameCallback(cb);
+  }
+  function flkAnalyze() {
+    var n = FLK.t.length; if (n < 60) return;
+    var span = (FLK.t[n - 1] - FLK.t[0]) / 1000; if (span < 2) return;
+    /* gerakan di layar mengubah kecerahan rata-rata, jadi kedip hanya dinilai saat pemandangan tenang */
+    FLK.skip = S.camObj > 0 || S.phoneMoving || performance.now() - S.camBoxT < 2000;
+    if (FLK.skip) { FLK.hits = 0; FLK.on = false; return; }
+    var fs = (n - 1) / span, fmax = Math.min(14, fs / 2 - 0.5), mean = 0, i, f, amps = [], best = 0, bf = 0;
+    for (i = 0; i < n; i++) mean += FLK.v[i];
+    mean /= n;
+    if (mean < 8) { FLK.hits = 0; FLK.on = false; return; }
+    for (f = 3; f <= fmax; f += 0.25) {
+      var re = 0, im = 0, ph, vv, A;
+      for (i = 0; i < n; i++) { ph = 6.2832 * f * (FLK.t[i] - FLK.t[0]) / 1000; vv = FLK.v[i] - mean; re += vv * Math.cos(ph); im -= vv * Math.sin(ph); }
+      A = 2 * Math.sqrt(re * re + im * im) / n; amps.push(A); if (A > best) { best = A; bf = f; }
+    }
+    amps.sort(function (a, b) { return a - b; });
+    var med = amps.length ? amps[amps.length >> 1] : 0, hit = best / mean > 0.004 && best > 4 * Math.max(med, 0.02);
+    FLK.hits = hit ? FLK.hits + 1 : 0; FLK.on = FLK.hits >= 2;
+    if (hit) { FLK.f = bf; FLK.rel = best / mean; }
+  }
+  function infoSync() {
+    var p = [], el2 = $('camInfo'), camOn = SENS.cam.st === 'on';
+    if (camOn) {
+      if (LOCK.on) p.push('Eksposur dan white balance terkunci.');
+      else if (LOCK.ok === false) p.push('Kamera ini tidak mendukung kunci eksposur manual.');
+      if (S.phoneMoving) p.push('Ponsel bergerak menurut sensor gerak, analisis kamera ditahan.');
+      if (HAS_RVFC && FLK.t.length >= 60 && !FLK.skip) p.push(FLK.on ? 'Kedip lampu terdeteksi sekitar ' + FLK.f.toFixed(1) + ' Hz (hasil aliasing dari lampu 50 atau 60 Hz): cahaya yang berkedip kemungkinan lampu biasa.' : 'Tidak ada kedip lampu terdeteksi.');
+    }
+    if (LX.on) p.push('Eksposur panjang: gerakan dan cahaya menumpuk sebagai jejak oranye lalu memudar pelan.');
+    if (HUM.status) p.push(HUM.status);
+    if (VID.on) p.push('Bukti video aktif: merekam bergulir di latar, lebih boros baterai.');
+    el2.textContent = p.join(' '); el2.hidden = !p.length;
+  }
+  function camAux(now) {
+    S.phoneMoving = SENS.vib.st === 'on' && now - S.mvT < 500 && (S.mvAcc > 0.25 || S.mvGyro > 12);
+    FLK.clock += S.dt;
+    if (FLK.clock >= 1) { FLK.clock = 0; flkAnalyze(); infoSync(); }
+    vidManage(now);
+  }
+
+  /* bukti video dengan pra-rekam: dua perekam bergiliran, satu ditahan saat ada anomali */
+  function vidPickMime() {
+    var c = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4'], i;
+    for (i = 0; i < c.length; i++) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c[i])) return c[i];
+    return '';
+  }
+  function vidEnable() {
+    if (!CAN_REC || typeof HTMLCanvasElement.prototype.captureStream !== 'function') return false;
+    var ar = camAR(), w = 480, h = Math.round(w / ar);
+    if (!VID.cv) { VID.cv = document.createElement('canvas'); VID.cx = VID.cv.getContext('2d'); }
+    VID.cv.width = w; VID.cv.height = h; VID.w = w; VID.h = h; VID.ar = ar;
+    try { VID.stream = VID.cv.captureStream(15); } catch (e) { return false; }
+    VID.on = true; return true;
+  }
+  function vidDisable() {
+    VID.on = false; vidStopAll();
+    try { if (VID.stream) VID.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    VID.stream = null;
+  }
+  function vidDraw(now) {
+    if (!VID.on || !VID.stream || SENS.cam.st !== 'on') return;
+    if (now - VID.lastDraw < 66) return; VID.lastDraw = now;
+    var v = $('camVid'); if (!v.videoWidth || v.readyState < 2) return;
+    if (Math.abs(camAR() - VID.ar) > 0.05) { vidDisable(); vidEnable(); return; }
+    var x = VID.cx, w = VID.w, h = VID.h, r = cropRect(v, w / h), cf = camFilter();
+    x.save(); x.filter = cf || 'none'; if (S.camMirror) { x.translate(w, 0); x.scale(-1, 1); }
+    x.drawImage(v, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h); x.restore();
+    drawBoxes(x, w, h, liveBoxes(), 1, 1, 0.5);
+    if (S.sls) drawSkel(x, w, h, liveBoxes(), 1, 1);
+    x.save(); x.font = '500 11px "IBM Plex Mono", ui-monospace, monospace'; x.textBaseline = 'top'; x.textAlign = 'left';
+    x.lineWidth = 3; x.strokeStyle = 'rgba(9,16,18,0.8)'; x.fillStyle = '#dbe6e3';
+    var tx = 'REC ' + fmt(S.t) + ' · indeks ' + Math.round(S.idx); x.strokeText(tx, 6, 6); x.fillText(tx, 6, 6); x.restore();
+    drawMark(x, w, h, 1);
+  }
+  function vidStartSlot(i, now) {
+    var opts = { videoBitsPerSecond: 900000 }, m = vidPickMime(), rec;
+    if (m) opts.mimeType = m;
+    try { rec = new MediaRecorder(VID.stream, opts); } catch (e) { try { rec = new MediaRecorder(VID.stream); } catch (e2) { return; } }
+    var s = { rec: rec, chunks: [], t0: now, keep: false, save: false, endAt: 0, type: rec.mimeType || m || 'video/webm' };
+    rec.ondataavailable = function (e) { if (e.data && e.data.size) s.chunks.push(e.data); };
+    rec.onstop = function () {
+      if (s.save && s.chunks.length) vidAdd(new Blob(s.chunks, { type: s.type }), (performance.now() - s.t0) / 1000);
+      s.chunks = [];
+    };
+    try { rec.start(1000); VID.slots[i] = s; } catch (e) {}
+  }
+  function vidFinish(i, save) {
+    var s = VID.slots[i]; if (!s) return;
+    s.save = save; VID.slots[i] = null;
+    try { if (s.rec.state !== 'inactive') s.rec.stop(); } catch (e) {}
+  }
+  function vidManage(now) {
+    if (!VID.on || !VID.stream || SENS.cam.st !== 'on') return;
+    var i, s;
+    for (i = 0; i < 2; i++) {
+      s = VID.slots[i];
+      if (!s) {
+        if (i === 1 && !(VID.slots[0] && now - VID.slots[0].t0 >= 4000)) continue;
+        vidStartSlot(i, now);
+      } else if (s.keep) {
+        if ((s.endAt && now >= s.endAt) || now - s.t0 > 30000) vidFinish(i, true);
+      } else if (now - s.t0 >= 8000) vidFinish(i, false);
+    }
+  }
+  function vidFlag() {
+    if (!VID.on) return;
+    var kept = null, old = null, i, s;
+    for (i = 0; i < 2; i++) {
+      s = VID.slots[i]; if (!s) continue;
+      if (s.keep) kept = s; else if (!old || s.t0 < old.t0) old = s;
+    }
+    if (kept) { kept.endAt = 0; return; }
+    if (old) { old.keep = true; old.endAt = 0; }
+  }
+  function vidUnflag() { VID.slots.forEach(function (s) { if (s && s.keep && !s.endAt) s.endAt = performance.now() + 3000; }); }
+  function vidStopAll() { var i; for (i = 0; i < 2; i++) if (VID.slots[i]) vidFinish(i, VID.slots[i].keep); }
+  function anyTrackOn() { return TR.mag.on || TR.vib.on || TR.snd.on || TR.cam.on; }
+  function vidAdd(blob, dur) {
+    var url = URL.createObjectURL(blob), l = $('vidList'), em = $('vidEmpty');
+    if (em && em.parentNode) em.parentNode.removeChild(em);
+    var ext = /mp4/.test(blob.type) ? 'mp4' : 'webm';
+    var it = document.createElement('div'); it.className = 'evp-item vid-item'; it._url = url;
+    var cap = document.createElement('div'); cap.className = 'cap';
+    var tx = document.createElement('span'); tx.textContent = fmt(S.t) + ' · ' + dur.toFixed(0) + ' dtk';
+    var dl = document.createElement('a'); dl.href = url; dl.download = 'bukti-' + fmt(S.t).replace(/:/g, '') + '.' + ext; dl.textContent = 'Simpan';
+    cap.appendChild(tx); cap.appendChild(dl);
+    var vd = document.createElement('video'); vd.controls = true; vd.playsInline = true; vd.preload = 'metadata'; vd.src = url;
+    it.appendChild(cap); it.appendChild(vd);
+    l.insertBefore(it, l.firstChild);
+    var items = l.getElementsByClassName('vid-item');
+    while (items.length > 4) { var old = items[items.length - 1]; if (old._url) URL.revokeObjectURL(old._url); l.removeChild(old); }
+    addLog('KAMERA', 'Klip bukti video tersimpan (' + dur.toFixed(0) + ' dtk). Putar di modul kamera.', 'ok');
+  }
+  function clearVid() {
+    var l = $('vidList'), items = l.getElementsByClassName('vid-item');
+    while (items.length) { var it = items[0]; if (it._url) URL.revokeObjectURL(it._url); l.removeChild(it); }
+    if (!$('vidEmpty')) { var p = document.createElement('p'); p.className = 'gal-empty'; p.id = 'vidEmpty'; p.textContent = VID_EMPTY; l.appendChild(p); }
+  }
+
   /* anomaly engine */
   function mkTr() { return { on: false, t0: 0, peak: 0, desc: '', quiet: 0, endT: -99, multi: false, snap: null, snapT: -99 }; }
   var TR = { mag: mkTr(), vib: mkTr(), snd: mkTr(), cam: mkTr() };
   function track(k, s, desc, cnt, snapFn) {
     var tr = TR[k];
     if (!tr.on) {
-      if (s > 0.35 && S.t - tr.endT > 3) { tr.on = true; tr.t0 = S.t; tr.peak = s; tr.desc = desc; tr.quiet = 0; tr.multi = cnt >= 2; tr.snap = snapFn ? snapFn() : null; tr.snapT = S.t; }
+      if (s > 0.35 && S.t - tr.endT > 3) { tr.on = true; tr.t0 = S.t; tr.peak = s; tr.desc = desc; tr.quiet = 0; tr.multi = cnt >= 2; tr.snap = snapFn ? snapFn() : null; tr.snapT = S.t; vidFlag(); }
       return;
     }
     if (s > tr.peak) { tr.peak = s; tr.desc = desc; if (snapFn && S.t - tr.snapT > 0.5) { tr.snap = snapFn(); tr.snapT = S.t; } }
@@ -1056,6 +1476,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       addLog(TAG[k], NAME[k] + ' · ' + tr.desc + ' · ' + Math.max(0.1, dur).toFixed(1) + ' dtk.' + (tr.multi ? ' Bersamaan dengan sensor lain.' : '') + ' Penyebab lazim: ' + CAUSE[k] + '.', sev, tr.snap);
       if (k === 'cam' && tr.snap) addGallery(tr.snap, tr.desc, sev);
       tr.on = false; tr.endT = S.t;
+      if (!anyTrackOn()) vidUnflag();
     }
   }
 
@@ -1071,7 +1492,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     if (SENS.mag.st === 'on' && now - S.magLast > 3000) setState('mag', 'off');
     if (SENS.vib.st === 'on' && now - S.vibLast > 3000) setState('vib', 'off');
 
-    if (SENS.cam.st === 'on') camStep();
+    if (SENS.cam.st === 'on') { camAux(now); if (camFresh || !HAS_RVFC) { camFresh = false; camStep(); } humStep(); }
     if (S.camBoxT !== blT && S.camBoxes.length) { blT = S.camBoxT; addBlips(); }
     if (SENS.snd.st === 'on' && SENS.snd.an) sndStep();
     S.vibClock += S.dt;
@@ -1110,7 +1531,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     if (sndOn) track('snd', sV, 'pita suara +' + S.voc.toFixed(0) + ' dB dari latar', cnt);
     if (camOn) {
       var hasL = S.camBoxes.some(function (b) { return b.type === 'CAHAYA'; });
-      track('cam', sC, (hasL ? 'titik cahaya muncul' : 'gerakan di depan lensa') + ', area ' + S.camArea.toFixed(0) + '%, ' + S.camObj + ' objek', cnt, camSnap);
+      track('cam', sC, (hasL ? 'titik cahaya muncul' : 'gerakan di depan lensa') + ', area ' + S.camArea.toFixed(0) + '%, ' + S.camObj + ' objek' + (S.camTop ? ', ' + S.camTop : ''), cnt, camSnap);
     }
 
     if (magOn) { S.magH.push(S.magDev); if (S.magH.length > HN) S.magH.shift(); }
@@ -1192,7 +1613,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     drawTrace(CV.emfCv, S.magH, 0, 20, COL.accent, 3);
     drawVib();
     drawCam();
-    drawRadar();
+    drawRadar(); vidDraw(performance.now());
     var rc = $('radChip');
     if (!S.running) chip(rc, 'off', 'SIAGA'); else if (BL.length) chip(rc, 'warn', 'SINYAL ' + BL.length); else chip(rc, 'ok', 'BERSIH');
   }
@@ -1207,6 +1628,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     S.camWarm = 0; S.camS = 0; S.camArea = 0; S.camObj = 0; S.camBoxes = []; S.camHeat.fill(0); camBg = null; clearGallery();
     TR.mag = mkTr(); TR.vib = mkTr(); TR.snd = mkTr(); TR.cam = mkTr(); VB = []; vLP = null;
     clearEvp(); BL = []; ALERT.lv = 0; S.sE = 0; S.sI = 0; S.sV = 0;
+    clearVid(); TRK = []; hiBg = null; LX.acc.fill(0); S.persons = []; S.phoneMoving = false; S.mvAcc = 0; S.mvGyro = 0; FLK.t = []; FLK.v = []; FLK.on = false; FLK.hits = 0;
     clearSpec();
   }
   function requestWake() {
@@ -1246,7 +1668,7 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
     });
   }
   function stop() {
-    S.running = false; clearInterval(timer); timer = null;
+    S.running = false; clearInterval(timer); timer = null; vidStopAll();
     stopMag(); stopVib(); stopSnd(); stopCam();
     try { if (wake) wake.release(); } catch (e) {} wake = null;
     ['mag', 'vib', 'snd', 'cam'].forEach(function (k) { if (SUP[k]) SENS[k].st = 'idle'; });
@@ -1329,6 +1751,46 @@ canvas.radar { width: 100%; max-width: 380px; aspect-ratio: 1 / 1; height: auto;
       camBg = null; camPrev = null; S.camWarm = 0; S.camS = 0; S.camBoxes = []; S.camHeat.fill(0); TR.cam = mkTr();
       if (S.running) addLog('SISTEM', 'Senter ' + (torchOn ? 'menyala' : 'mati') + '. Latar visual dipelajari ulang.', 'ok');
     }).catch(function () { torchOff(); });
+  });
+
+  /* tombol kamera lanjutan */
+  function setBtn(btn, label, on) { btn.setAttribute('aria-pressed', on ? 'true' : 'false'); btn.textContent = label + ': ' + (on ? 'aktif' : 'mati'); }
+  btnLock.addEventListener('click', function () {
+    var tr = camTrack(); if (!tr) return;
+    var want = !LOCK.on, st = {}, adv;
+    btnLock.disabled = true;
+    try { st = tr.getSettings(); } catch (e) {}
+    if (want) {
+      adv = { exposureMode: 'manual', whiteBalanceMode: 'manual' };
+      if (st.exposureTime != null) adv.exposureTime = st.exposureTime;
+      if (st.iso != null) adv.iso = st.iso;
+      if (st.colorTemperature != null) adv.colorTemperature = st.colorTemperature;
+    } else adv = { exposureMode: 'continuous', whiteBalanceMode: 'continuous' };
+    tr.applyConstraints({ advanced: [adv] }).then(function () {
+      LOCK.on = want; btnLock.disabled = false; lockUi(); camRelearn(); infoSync();
+      if (S.running) addLog('SISTEM', 'Kunci eksposur ' + (want ? 'aktif' : 'mati') + '. Latar visual dipelajari ulang.', 'ok');
+    }).catch(function () { LOCK.ok = false; LOCK.on = false; btnLock.disabled = true; lockUi(); infoSync(); });
+  });
+  btnLx.addEventListener('click', function () {
+    LX.on = !LX.on; LX.acc.fill(0); LX.cx.clearRect(0, 0, HW, HH);
+    setBtn(btnLx, 'Eksposur panjang', LX.on); infoSync();
+  });
+  btnHum.addEventListener('click', function () {
+    if (HUM.on) { HUM.on = false; HUM.status = ''; S.persons = []; setBtn(btnHum, 'Filter manusia', false); infoSync(); return; }
+    HUM.on = true; HUM.status = 'Memuat model deteksi orang dari CDN (butuh internet, beberapa MB)…';
+    setBtn(btnHum, 'Filter manusia', true); btnHum.disabled = true; infoSync();
+    humLoad().then(function () {
+      btnHum.disabled = false;
+      HUM.status = 'Filter manusia aktif: gerakan orang sungguhan tidak dihitung sebagai anomali.'; infoSync();
+    }).catch(function () {
+      HUM.on = false; btnHum.disabled = false; setBtn(btnHum, 'Filter manusia', false);
+      HUM.status = 'Gagal memuat model. Filter manusia butuh internet.'; infoSync();
+    });
+  });
+  if (!CAN_REC || typeof HTMLCanvasElement.prototype.captureStream !== 'function') { btnVid.disabled = true; btnVid.title = 'Browser ini tidak mendukung perekaman video'; }
+  btnVid.addEventListener('click', function () {
+    if (VID.on) vidDisable(); else if (!vidEnable()) { btnVid.disabled = true; return; }
+    setBtn(btnVid, 'Bukti video', VID.on); infoSync();
   });
 
   fitAll(); clearSpec();
